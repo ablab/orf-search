@@ -16,8 +16,8 @@ import load_mappings
 
 sys.setrecursionlimit(1000000)
 
-MET = set({"ATG"})
-cMet = set({"CAT"})
+MET = set({"ATG", "GTG", "TTG"})
+cMet = set({"CAT", "CAC", "CAA"})
 
 sd_seq = "AGGAGG"
 asd_seq = "CCTCCT"
