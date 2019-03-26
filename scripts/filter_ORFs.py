@@ -23,9 +23,9 @@ def save_fasta(filename, orfs):
     with open(filename + ".fasta", "w") as output_handle:
         SeqIO.write(orfs, output_handle, "fasta")
 
-def align_with_nucmer(orfs, orfs_filename, contigs_filename, nucmer_path, outfile, threads):
+def align_with_nucmer(orfs, orfs_filename, contigs_filename, outfile, threads):
     res = []
-    com = nucmer_path + "nucmer -t " + threads + " --sam-short " + outfile + ".sam " + contigs_filename + " " + orfs_filename
+    com = "nucmer -t " + threads + " --sam-short " + outfile + ".sam " + contigs_filename + " " + orfs_filename
     print("Running nucmer: " + com)
     subprocess.call([com], shell=True)
     aligned_set = set()
@@ -119,7 +119,6 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--contigs', help='fasta-file with contigs', required=False)
     parser.add_argument('-p', '--proteins',  help='list of known genes', required=False)
     parser.add_argument('-o', '--out',  help='output prefix', required=True)
-    parser.add_argument('-n', '--nucmer', help='path to nucmer (much-much faster!)', required=False)
     parser.add_argument('-t', '--threads', help='threads number', required=False)
     args = parser.parse_args()
     t = args.threads
@@ -130,10 +129,7 @@ if __name__ == "__main__":
     if args.contigs != None:
         contigs = load_fasta(args.contigs)
         print("ORFs num: " + str(len(orfs)) + " Contigs num: " + str(len(contigs)))
-        if args.nucmer != None:
-            orfs = align_with_nucmer(orfs, args.orfs, args.contigs, args.nucmer, args.out, t)
-        else:
-            orfs = filter_in_contigs(orfs, contigs, args.nucmer)
+        orfs = align_with_nucmer(orfs, args.orfs, args.contigs, args.out, t)
     orfs = translate_orfs(orfs)
     orfs = leave_unique(orfs)
     if args.proteins != None:
