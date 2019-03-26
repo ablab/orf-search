@@ -2,6 +2,8 @@
 from Bio.Seq import Seq
 from Bio.Alphabet import generic_dna
 
+from joblib import Parallel, delayed
+
 import sys
 import argparse
 from collections import deque
@@ -13,6 +15,7 @@ from os.path import isfile, isdir, join
 import multiprocessing
 
 import load_mappings
+
 
 sys.setrecursionlimit(1000000)
 
@@ -377,11 +380,8 @@ def generate_orf(args):
 
 
 def generate_orfs(output, output_shortest, alns, edges, graph, startcodon_dists, t, prefix):
-    print("Threads " + str(t))
-    pool = multiprocessing.Pool(processes = t)
-    args = zip(alns, [graph for _ in range(len(alns))], [edges for _ in range(len(alns))], startcodon_dists)
-    all_orfs = pool.map(generate_orf, args)
-
+    print("Threads " + str(t) + " alns " + str(len(alns)) + " ds " + str(len(startcodon_dists)))
+    all_orfs = Parallel(n_jobs=t, require='sharedmem')(delayed(generate_orf)([alns[i], graph, edges, startcodon_dists[i]]) for i in range(len(alns)))
     with open(output, "a+") as fout:    
         for orf in all_orfs:
             name = orf["name"]
