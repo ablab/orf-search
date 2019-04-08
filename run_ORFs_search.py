@@ -50,7 +50,7 @@ def extract_ORFs_from_graph(hmms_alignments, proteins_alignments, graph_file, k,
 def filter_orfs(orfs_sequences, proteins_file, contigs_file, threads, nucmer_path, out_file, out_dir):
     com = execution_path + "/scripts/filter_ORFs.py -s " + orfs_sequences + \
               " -c " + contigs_file +\
-              " -p " + proteins_file + " -n " + nucmer_path + " -t " + str(threads) + " -o "\
+              " -p " + proteins_file  + " -t " + str(threads) + " -o "\
                + out_file
     print("Running: " + com)
     subprocess.call([com], shell=True)
