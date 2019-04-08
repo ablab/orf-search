@@ -253,7 +253,7 @@ def find_start_codons(graph, edges, s_p, s_edge, max_length):
     return start_codon_pos
 
 def find_stop_codons(graph, edges, f_p, f_edge, max_length):
-    stop_codon_pos = find_ends(graph, edges, f_p + 1, f_edge, Stop_codons, Stop_codons, max_length)
+    stop_codon_pos = find_ends(graph, edges, f_p - 3 + 1, f_edge, Stop_codons, Stop_codons, max_length)
     return stop_codon_pos
 
 
@@ -266,13 +266,9 @@ def find_paths(graph, edges, s_p, f_p, inner_path, startcodon_dist):
     else:
         max_length = 3*max(startcodon_dist) + 300
 
-    start_codon_pos = []
-    for i in range(3):
-        start_codon_pos.extend(find_start_codons(graph, edges, s_p + i, s_edge, max_length))
+    start_codon_pos = find_start_codons(graph, edges, s_p, s_edge, max_length)
 
-    stop_codon_pos = []
-    for i in range(3):
-        stop_codon_pos.extend(find_stop_codons(graph, edges, f_p - i, f_edge, 3000))
+    stop_codon_pos = find_stop_codons(graph, edges, f_p, f_edge, 3000)
     return start_codon_pos, stop_codon_pos
 
 
@@ -380,7 +376,7 @@ def find_all_paths(graph, edges, aln, start_codons, stop_codons, startcodon_dist
                                 score += 1.0
                         score /= len(startcodon_dist)
                     path_str = restore_path(edges, start_pos, end_pos, path)
-                    if len(path_str) % 3 == 0 and len(path) > 1:
+                    if len(path_str) % 3 == 0:
                         t_s = translate_str(path_str)
                         if t_s.find("*") == len(t_s) - 1:
                             paths.append({"Edges": path, "seq": path_str,\
