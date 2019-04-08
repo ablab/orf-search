@@ -44,9 +44,19 @@ def translate_str(s):
     seq = Seq(s)
     return str(seq.translate())
 
+class Graph:
+    def __init__(self, edges, graph, paths, edge_paths):
+        self.edges = edges
+        self.graph = graph
+        self.paths = paths
+        self.edge_paths = edge_paths
+
+
 def load_gfa_edges(gfa_filename):
     res = {}
     graph = {}
+    paths = {}
+    edge_paths = {}
     rev = {"+": "-", "-": "+"}
     with open(gfa_filename, "r") as fin:
         for ln in fin.readlines():
@@ -60,7 +70,22 @@ def load_gfa_edges(gfa_filename):
                 _, node_id1, pos1, node_id2, pos2, match  = ln.strip().split("\t")
                 graph[node_id1+pos1][node_id2+pos2] = 1
                 graph[node_id2+rev[pos2]][node_id1+rev[pos1]] = 1
-    return res, graph
+            elif ln.startswith("P"):
+                _, name, nodes_lst, _ = ln.strip().split("\t")
+                paths[name] = nodes_lst.split(",")
+                for n in paths[name]:
+                    if n not in edge_paths:
+                        edge_paths[n] = []
+                    edge_paths[n].append(name)
+                path_rc = []
+                for n in paths[name]:
+                    n_rc = n[:-1] + ("+" if n[-1] == "-" else "-")
+                    if n_rc not in edge_paths:
+                        edge_paths[n_rc] = []
+                    edge_paths[n_rc].append(name + "_rc")
+                    path_rc.append(n_rc)
+                paths[name + "_rc"] = path_rc[::-1]
+    return Graph(res, graph, paths, edge_paths)
 
 
 def load_subpaths(filename):
@@ -365,23 +390,97 @@ def find_all_paths(graph, edges, aln, start_codons, stop_codons, startcodon_dist
                                            "has_sd": has_sd})
     return paths
 
+def overlap(p1, p2, g):
+    e1 = set(p1)
+    e2 = set(p2)
+    sm = 0
+    for e in e1 & e2:
+        sm += len(g.edges[e])
+    return sm
+
+def supported_by_contig(p1, p2, g, overlap_len):
+    p1_str = ",".join(p1)
+    p2_str = ",".join(p2)
+    if p1_str in p2_str or p2_str in p1_str:
+        return True
+    has_good_overlap = False
+    for i1 in range(len(p1)):
+        for i2 in range(len(p2)):
+            p1_str = ",".join(p1[:i1 + 1])
+            p2_str = ",".join(p2[i2:])
+            if p1_str == p2_str:
+                if overlap(p1[:i1 + 1], p2[i2:], g) >= overlap_len:
+                    has_good_overlap = True
+                    break
+            p1_str = ",".join(p1[i1:])
+            p2_str = ",".join(p2[:i2 + 1])
+            if p1_str == p2_str:
+                if overlap(p1[i1:], p2[:i2 + 1], g) >= overlap_len:
+                    has_good_overlap = True
+                    break
+        if has_good_overlap:
+            break
+    return has_good_overlap
+
+
+def compare_with_contig_paths(name, paths, g):
+    res_path = []
+    for p in paths:
+        contigs = set()
+        for e in p["Edges"]:
+            if e in g.edge_paths:
+                for c in g.edge_paths[e]:
+                    contigs.add(c)
+        #print(["Path ", "_".join(p["Edges"]), [len(g.edges[x]) for x in p["Edges"]],name])
+        supported_edges = set()
+        for c in contigs:
+            overlap_len = overlap(p["Edges"], g.paths[c], g)
+            has_good_overlap = supported_by_contig(p["Edges"], g.paths[c], g, overlap_len)
+            #print([g.paths[c], overlap_len, has_good_overlap])
+            if has_good_overlap:
+                supported_edges |= set(g.paths[c])
+        if len(set(p["Edges"]) - supported_edges) == 0:
+            print(["Supported by contigs"])
+            res_path.append(p)
+        else:
+            unsupported = set(p["Edges"]) - supported_edges
+            still_good_path = True
+            for i in range(len(p["Edges"])):
+                if p["Edges"][i] in unsupported:
+                    if i == 0 or i == len(p["Edges"]) - 1:
+                        still_good_path = False
+                        break
+                    e_p, e, e_n = p["Edges"][i - 1], p["Edges"][i], p["Edges"][i + 1]
+                    if len(set(g.edge_paths[e_p]) & set(g.edge_paths[e_n])) != 0 \
+                        or len(set(g.edge_paths[e_p]) & set(g.edge_paths[e])) != 0 \
+                        or len(set(g.edge_paths[e]) & set(g.edge_paths[e_n])) != 0:
+                        still_good_path = False
+                        break
+            if still_good_path:
+                print(["Supported by contigs"])
+                res_path.append(p)
+            else:
+                print(["Not supported by contigs", set(p["Edges"]) - supported_edges])
+    return res_path
+
 
 def generate_orf(args):
-    aln, graph, edges, startcodon_dist = args[0], args[1], args[2], args[3]
+    aln, g, startcodon_dist = args[0], args[1], args[2]
     if aln["name"] != "Cry22_MR":
         print(aln)
-        start_codon_pos, stop_codon_pos = find_paths(graph, edges, aln["start"], aln["end"], aln["path"], startcodon_dist)
+        start_codon_pos, stop_codon_pos = find_paths(g.graph, g.edges, aln["start"], aln["end"], aln["path"], startcodon_dist)
         print("Start codon num=" + str(len(start_codon_pos)) + " Stop codons num=" + str(len(stop_codon_pos)))
-        all_paths = find_all_paths(graph, edges, aln, start_codon_pos, stop_codon_pos, startcodon_dist)
+        all_paths = find_all_paths(g.graph, g.edges, aln, start_codon_pos, stop_codon_pos, startcodon_dist)
+        all_paths = compare_with_contig_paths(aln["name"], all_paths, g)
         print("Paths num=" + str(len(all_paths)))
         return {"name": aln["name"], "all_paths": all_paths}
     else:
         return {"name": aln["name"], "all_paths": []}
 
 
-def generate_orfs(output, output_shortest, alns, edges, graph, startcodon_dists, t, prefix):
+def generate_orfs(output, output_shortest, alns, g, startcodon_dists, t, prefix):
     print("Threads " + str(t) + " alns " + str(len(alns)) + " ds " + str(len(startcodon_dists)))
-    all_orfs = Parallel(n_jobs=t, require='sharedmem')(delayed(generate_orf)([alns[i], graph, edges, startcodon_dists[i]]) for i in range(len(alns)))
+    all_orfs = Parallel(n_jobs=t, require='sharedmem')(delayed(generate_orf)([alns[i], g, startcodon_dists[i]]) for i in range(len(alns)))
     with open(output, "a+") as fout:    
         for orf in all_orfs:
             name = orf["name"]
@@ -406,7 +505,7 @@ if __name__ == "__main__":
         print("Error: Please provide sequences or hmm alignments")
         exit(-1)
     K = int(args.kmer)
-    edges, graph = load_gfa_edges(args.graph)
+    g = load_gfa_edges(args.graph)
     output = args.out + ".fasta"
     output_shortest = args.out + "_shortest.fasta"
     if os.path.exists(output):
@@ -428,21 +527,21 @@ if __name__ == "__main__":
         alns = []
         for f in filenames:
             f_path = join(args.hmms, f)
-            alns.extend(load_mappings.load_pathracer_mapping(f_path, edges, K))
+            alns.extend(load_mappings.load_pathracer_mapping(f_path, g.edges, K))
         startcodon_dists = []
         for aln in alns:
             startcodon_dist = []
             if aln["name"] in hmm_hits:
                 startcodon_dist = [x["start"] for x in hmm_hits[aln["name"]] ]
             startcodon_dists.append(startcodon_dist)
-        generate_orfs(output, output_shortest, alns, edges, graph, startcodon_dists, int(args.threads), "pathracer")
+        generate_orfs(output, output_shortest, alns, g, startcodon_dists, int(args.threads), "pathracer")
 
     if args.sequences != None:
         alns = load_mappings.load_spaligner_mapping(args.sequences)
         startcodon_dists = []
         for a in alns:
             startcodon_dists.append([a["d"]])
-        generate_orfs(output, output_shortest, alns, edges, graph, startcodon_dists, int(args.threads), "spaligner")
+        generate_orfs(output, output_shortest, alns, g, startcodon_dists, int(args.threads), "spaligner")
 
 
 
