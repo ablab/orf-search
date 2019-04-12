@@ -5,6 +5,7 @@ from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 
 import subprocess
+import logging
 
 import sys
 import argparse
@@ -26,7 +27,7 @@ def save_fasta(filename, orfs):
 def align_with_nucmer(orfs, orfs_filename, contigs_filename, outfile, threads):
     res = []
     com = "nucmer -t " + threads + " --sam-short " + outfile + ".sam " + contigs_filename + " " + orfs_filename
-    print("Running nucmer: " + com)
+    logging.info( u'Running nucmer: ' + com)
     subprocess.call([com], shell=True)
     aligned_set = set()
     pattern = re.compile("^[0-9]+M$")
@@ -39,7 +40,7 @@ def align_with_nucmer(orfs, orfs_filename, contigs_filename, outfile, threads):
                 if pattern.match(cigar):
                     aligned_set.add(name)
     #os.remove(outfile+".sam")
-    print("Contained in contigs: " + str(len(aligned_set)))
+    logging.info( u'Contained in contigs: ' + str(len(aligned_set)))
     for orf in orfs:
         if orf.name not in aligned_set:
             res.append(orf) 
@@ -56,7 +57,6 @@ def filter_in_contigs(orfs, contigs):
                 break
         if not found:
             res.append(orf)
-            print(["ORF unique: ", orf.id])
     return res
 
 def make_record(seq, name, sid, d=""):
@@ -74,8 +74,6 @@ def leave_unique(orfs):
     for orf in orfs:
         seq_set.add(orf.seq)
 
-    print(len(seq_set))
-    print(len(orfs))
     for s in seq_set:
         sid = []
         name = []
@@ -109,9 +107,6 @@ def merge(orfs):
         if "spaligner" in orf.name:
             seq_set2.add(orf.name)
 
-    #print([len(seq_set1 - seq_set2), len(seq_set2 - seq_set1)])
-    #print("\n".join(seq_set1 - seq_set2))
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Filter ORFs')
@@ -121,6 +116,7 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--out',  help='output prefix', required=True)
     parser.add_argument('-t', '--threads', help='threads number', required=False)
     args = parser.parse_args()
+    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'.log')
     t = args.threads
     if t == None:
         t = "1"
@@ -128,14 +124,14 @@ if __name__ == "__main__":
     orfs = load_fasta(args.orfs)
     if args.contigs != None:
         contigs = load_fasta(args.contigs)
-        print("ORFs num: " + str(len(orfs)) + " Contigs num: " + str(len(contigs)))
+        logging.info( u'ORFs num: ' + str(len(orfs)) + u' Contigs num: ' + str(len(contigs)))
         orfs = align_with_nucmer(orfs, args.orfs, args.contigs, args.out, t)
     orfs = translate_orfs(orfs)
     orfs = leave_unique(orfs)
     if args.proteins != None:
         known_proteins = load_fasta(args.proteins)
         orfs = leave_unknown(orfs, known_proteins)
-    print("Resulting ORFs: " + str(len(orfs)))
+    logging.info( u'Resulting ORFs: ' + str(len(orfs)))
     save_fasta(args.out, orfs)
     merge(orfs)
 

@@ -7,6 +7,7 @@ from joblib import Parallel, delayed
 import sys
 import argparse
 from collections import deque
+import logging
 
 import os
 from os import listdir
@@ -323,7 +324,7 @@ def generate_all_paths(graph, edges, s_edge, f_edge, s_pos, e_pos, max_path_num,
         cur_edges[e] = 0
     all_paths = []
     search_all_path(s_edge, s_pos, e_pos, 0, f_edge, [s_edge], paths, all_paths, cur_edges, max_path_num, max_length, min_length, edges_intersection, edges, graph)
-    print([max_length, min_length, "paths", len(paths), len(all_paths), max_path_num])
+    #print([max_length, min_length, "paths", len(paths), len(all_paths), max_path_num])
     return paths, len(all_paths) 
 
 def find_all_paths(graph, edges, aln, start_codons, stop_codons, startcodon_dist):
@@ -332,7 +333,6 @@ def find_all_paths(graph, edges, aln, start_codons, stop_codons, startcodon_dist
     max_path_num = 5000
     paths = []
     start_codons_paths = {}
-    #print("Find prefix")
     for s in start_codons:
         if len(s["path"][0]) > 0:
             k = s["path"][0][0] + "_" + str(s["path"][1])
@@ -342,7 +342,6 @@ def find_all_paths(graph, edges, aln, start_codons, stop_codons, startcodon_dist
             start_codons_paths[k]["has_sd"] = s["has_sd"]
         else:
             start_codons_paths[s_edge + "_" + str(s["path"][1])] = {"paths": [[[s_edge],s["d"]]], "is_all_paths": 1, "has_sd": s["has_sd"]}
-    #print("Find suffix")
     stop_codons_paths = {}
     for s in stop_codons:
         if len(s["path"][0]) > 0:
@@ -427,16 +426,14 @@ def compare_with_contig_paths(name, paths, g):
             if e in g.edge_paths:
                 for c in g.edge_paths[e]:
                     contigs.add(c)
-        #print(["Path ", "_".join(p["Edges"]), [len(g.edges[x]) for x in p["Edges"]],name])
         supported_edges = set()
         for c in contigs:
             overlap_len = overlap(p["Edges"], g.paths[c], g)
             has_good_overlap = supported_by_contig(p["Edges"], g.paths[c], g, overlap_len)
-            #print([g.paths[c], overlap_len, has_good_overlap])
             if has_good_overlap:
                 supported_edges |= set(g.paths[c])
         if len(set(p["Edges"]) - supported_edges) == 0:
-            print(["Supported by contigs"])
+            logging.debug(u'Supported by contigs')
             res_path.append(p)
         else:
             unsupported = set(p["Edges"]) - supported_edges
@@ -453,29 +450,29 @@ def compare_with_contig_paths(name, paths, g):
                         still_good_path = False
                         break
             if still_good_path:
-                print(["Supported by contigs"])
+                logging.debug(u'Supported by contigs')
                 res_path.append(p)
             else:
-                print(["Not supported by contigs", set(p["Edges"]) - supported_edges])
+                logging.debug(u'Not supported by contigs')
     return res_path
 
 
 def generate_orf(args):
     aln, g, startcodon_dist = args[0], args[1], args[2]
     if aln["name"] != "Cry22_MR":
-        print(aln)
+        logging.debug(u'aln')
         start_codon_pos, stop_codon_pos = find_paths(g.graph, g.edges, aln["start"], aln["end"], aln["path"], startcodon_dist)
-        print("Start codon num=" + str(len(start_codon_pos)) + " Stop codons num=" + str(len(stop_codon_pos)))
+        logging.debug(u'Start codon num=' + str(len(start_codon_pos)) + ' Stop codons num=' + str(len(stop_codon_pos)))
         all_paths = find_all_paths(g.graph, g.edges, aln, start_codon_pos, stop_codon_pos, startcodon_dist)
         all_paths = compare_with_contig_paths(aln["name"], all_paths, g)
-        print("Paths num=" + str(len(all_paths)))
+        logging.debug(u'Paths num=' + str(len(all_paths)))
         return {"name": aln["name"], "all_paths": all_paths}
     else:
         return {"name": aln["name"], "all_paths": []}
 
 
 def generate_orfs(output, output_shortest, alns, g, startcodon_dists, t, prefix):
-    print("Threads " + str(t) + " alns " + str(len(alns)) + " ds " + str(len(startcodon_dists)))
+    logging.debug( u'Threads ' + str(t) + u' alns ' + str(len(alns)))
     all_orfs = Parallel(n_jobs=t, require='sharedmem')(delayed(generate_orf)([alns[i], g, startcodon_dists[i]]) for i in range(len(alns)))
     with open(output, "a+") as fout:    
         for orf in all_orfs:
@@ -496,9 +493,9 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--out',  help='output prefix', required=True)
     parser.add_argument('-t', '--threads', help='threads number', required=False)
     args = parser.parse_args()
-    
+    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'.log')
     if args.hmms == None and args.sequences == None:
-        print("Error: Please provide sequences or hmm alignments")
+        logging.error( u'Please provide sequences or hmm alignments')
         exit(-1)
     K = int(args.kmer)
     g = load_gfa_edges(args.graph)
@@ -511,7 +508,7 @@ if __name__ == "__main__":
 
     if args.hmms != None:
         if (args.proteins == None or args.domtbl == None):
-            print("Warning: information about HMMs positions is not provided")
+            logging.warning( u'Information about HMMs positions is not provided')
             hmm_hits = {}
         else:
             hmm_hits = load_mappings.load_true_crygenes(args.proteins, args.domtbl, {}, K)
@@ -530,6 +527,7 @@ if __name__ == "__main__":
             if aln["name"] in hmm_hits:
                 startcodon_dist = [x["start"] for x in hmm_hits[aln["name"]] ]
             startcodon_dists.append(startcodon_dist)
+        logging.info( u'HMMs: ' + str(len(alns)))
         generate_orfs(output, output_shortest, alns, g, startcodon_dists, int(args.threads), "pathracer")
 
     if args.sequences != None:
@@ -537,6 +535,7 @@ if __name__ == "__main__":
         startcodon_dists = []
         for a in alns:
             startcodon_dists.append([a["d"]])
+        logging.info( u'Seqs: ' + str(len(alns)))
         generate_orfs(output, output_shortest, alns, g, startcodon_dists, int(args.threads), "spaligner")
 
 
