@@ -134,6 +134,43 @@ def check_for_sdseq(graph, edges, p, edge, max_length = 20):
                                     
     return found_SD
 
+def check_for_stopcodon(graph, edges, p, edge, find_set, stop_set, max_length):
+    queue = deque()
+    color = {}
+    if p == len(edges[edge]):
+        queue.append({"edge": edge, "prev": "", "pos": p - 3, "dist": 0})  
+        start_state = edge + "_" + str(p - 3) + "_" 
+    else:
+        queue.append({"edge": edge, "prev": "", "pos": p, "dist": 0})
+        start_state = edge + "_" + str(p) + "_"
+    final_state = None
+    res = []
+    cnt = 0
+    found_StopCodon = False
+    while len(queue) > 0:
+        cur_state = queue.popleft()
+        #print([cur_state["edge"], len(edges[cur_state["edge"]]), cur_state["pos"], cur_state])
+        cur_str = cur_state["prev"] + edges[cur_state["edge"]][cur_state["pos"]]
+        if len(cur_str) == 3 and cur_str in find_set:
+            found_StopCodon = True
+
+        if len(cur_str) == 3:
+            prev = ""
+        else:
+            prev = cur_str
+        if (len(cur_str) != 3 or cur_str not in stop_set) and cur_state["dist"] < max_length:
+            if cur_state["pos"] + 1 > len(edges[cur_state["edge"]]) - 1:
+                for a_edge in graph[cur_state["edge"]]:
+                    if a_edge + "_" + str(K) + "_" + prev not in color: 
+                        queue.append({"edge": a_edge, "prev": prev, "pos": K, "dist": cur_state["dist"] + 1})
+                        color[a_edge + "_" + str(K) + "_" + prev] = cur_state["edge"] + "_" + str(cur_state["pos"]) + "_" + cur_state["prev"]
+            else:
+                if cur_state["edge"] + "_" + str(cur_state["pos"] + 1) + "_" + prev not in color:
+                    queue.append({"edge": cur_state["edge"], "prev": prev, "pos": cur_state["pos"] + 1, "dist": cur_state["dist"] + 1})
+                    color[cur_state["edge"] + "_" + str(cur_state["pos"] + 1) + "_" + prev] = \
+                            cur_state["edge"] + "_" + str(cur_state["pos"]) + "_" + cur_state["prev"]
+    return found_StopCodon
+
 def restore_subpath(color, s, f):
     path = []
     pos = int(f.split("_")[1])
@@ -212,7 +249,7 @@ def restore_path_len(edges, s_p, f_p, path):
     res += f_p + 1 - max(cur_pos, 0)
     return res
 
-def find_start_codons(graph, edges, s_p, s_edge, max_length):
+def find_start_codons(graph, edges, s_p, s_edge, max_length, only_longest):
     cs_edge = revert(s_edge)
     if len(edges[cs_edge]) - (s_p + 3) > 0:
         cs_p = len(edges[cs_edge]) - (s_p + 3)
@@ -235,6 +272,7 @@ def find_start_codons(graph, edges, s_p, s_edge, max_length):
         else:
             pos = len(edges[cs_edge]) - cpos - 1
             start_codon_pos.append({"path":[[], pos], "d": potential_start_pos["d"]})
+    start_codon_pos_filtered = []
     for p in start_codon_pos:
         if len(p["path"][0]) == 0:
             e = revert(s_edge)
@@ -251,14 +289,23 @@ def find_start_codons(graph, edges, s_p, s_edge, max_length):
         else:
             p["has_sd"] = False
 
-    return start_codon_pos
+        if check_for_stopcodon(graph, edges, cs_p, e, cStop_codons, cMet, max_length):
+            p["after_stopcodon"] = True
+            start_codon_pos_filtered.append(p)
+        else:
+            p["after_stopcodon"] = False
+            if not only_longest:
+                start_codon_pos_filtered.append(p)
+
+
+    return start_codon_pos_filtered
 
 def find_stop_codons(graph, edges, f_p, f_edge, max_length):
     stop_codon_pos = find_ends(graph, edges, f_p - 3 + 1, f_edge, Stop_codons, Stop_codons, max_length)
     return stop_codon_pos
 
 
-def find_paths(graph, edges, s_p, f_p, inner_path, startcodon_dist):
+def find_paths(graph, edges, s_p, f_p, inner_path, startcodon_dist, only_longest):
     s_edge = inner_path[0]
     f_edge = inner_path[-1]
 
@@ -267,7 +314,7 @@ def find_paths(graph, edges, s_p, f_p, inner_path, startcodon_dist):
     else:
         max_length = 3*max(startcodon_dist) + 300
 
-    start_codon_pos = find_start_codons(graph, edges, s_p, s_edge, max_length)
+    start_codon_pos = find_start_codons(graph, edges, s_p, s_edge, max_length, only_longest)
 
     stop_codon_pos = find_stop_codons(graph, edges, f_p, f_edge, 3000)
     return start_codon_pos, stop_codon_pos
@@ -340,8 +387,10 @@ def find_all_paths(graph, edges, aln, start_codons, stop_codons, startcodon_dist
             start_codons_paths[k]["paths"], start_codons_paths[k]["is_all_paths"] = \
                 generate_all_paths(graph, edges, s["path"][0][0], s_edge, s["path"][1], aln["start"]-1, max_path_num, s["d"]*3 + 1000, s["d"]*3 - 10)
             start_codons_paths[k]["has_sd"] = s["has_sd"]
+            start_codons_paths[k]["after_stopcodon"] = s["after_stopcodon"]
         else:
-            start_codons_paths[s_edge + "_" + str(s["path"][1])] = {"paths": [[[s_edge],s["d"]]], "is_all_paths": 1, "has_sd": s["has_sd"]}
+            start_codons_paths[s_edge + "_" + str(s["path"][1])] = {"paths": [[[s_edge],s["d"]]], "is_all_paths": 1, \
+                                                                   "has_sd": s["has_sd"], "after_stopcodon": s["after_stopcodon"]}
     stop_codons_paths = {}
     for s in stop_codons:
         if len(s["path"][0]) > 0:
@@ -382,7 +431,7 @@ def find_all_paths(graph, edges, aln, start_codons, stop_codons, startcodon_dist
                                           "apriori_startd_prob": score, "starts_cnt": start_num, "stops_cnt": stop_num,\
                                            "start_cnt": total_num_start, "stop_cnt": total_num_end, \
                                            "generated_all": not not_all, "cur_paths_cnt": (start_all*stop_all), \
-                                           "has_sd": has_sd})
+                                           "has_sd": has_sd, "after_stopcodon": start_codons_paths[sp]["after_stopcodon"]})
     return paths
 
 def overlap(p1, p2, g):
@@ -458,10 +507,10 @@ def compare_with_contig_paths(name, paths, g):
 
 
 def generate_orf(args):
-    aln, g, startcodon_dist = args[0], args[1], args[2]
+    aln, g, startcodon_dist, only_longest = args[0], args[1], args[2], args[3]
     if aln["name"] != "Cry22_MR":
         logging.debug(u'aln')
-        start_codon_pos, stop_codon_pos = find_paths(g.graph, g.edges, aln["start"], aln["end"], aln["path"], startcodon_dist)
+        start_codon_pos, stop_codon_pos = find_paths(g.graph, g.edges, aln["start"], aln["end"], aln["path"], startcodon_dist, only_longest)
         logging.debug(u'Start codon num=' + str(len(start_codon_pos)) + ' Stop codons num=' + str(len(stop_codon_pos)))
         all_paths = find_all_paths(g.graph, g.edges, aln, start_codon_pos, stop_codon_pos, startcodon_dist)
         all_paths = compare_with_contig_paths(aln["name"], all_paths, g)
@@ -471,9 +520,9 @@ def generate_orf(args):
         return {"name": aln["name"], "all_paths": []}
 
 
-def generate_orfs(output, output_shortest, alns, g, startcodon_dists, t, prefix):
+def generate_orfs(output, output_shortest, alns, g, startcodon_dists, only_longest, t, prefix):
     logging.debug( u'Threads ' + str(t) + u' alns ' + str(len(alns)))
-    all_orfs = Parallel(n_jobs=t, require='sharedmem')(delayed(generate_orf)([alns[i], g, startcodon_dists[i]]) for i in range(len(alns)))
+    all_orfs = Parallel(n_jobs=t, require='sharedmem')(delayed(generate_orf)([alns[i], g, startcodon_dists[i], only_longest]) for i in range(len(alns)))
     with open(output, "a+") as fout:    
         for orf in all_orfs:
             name = orf["name"]
@@ -490,6 +539,7 @@ if __name__ == "__main__":
     parser.add_argument('-k', '--kmer', help='k-mer size in graph', required=True)
     parser.add_argument('-p', '--proteins',  help='list of genes to estimate hmms position on genes (domtbl has to be set)', required=False)
     parser.add_argument('-d', '--domtbl',  help='HMMer alignment of hmms to genes (genes has to be set)', required=False)
+    parser.add_argument('-f', '--longestorf', help='generate ORFs that have stop codon before start codon', action='store_true')
     parser.add_argument('-o', '--out',  help='output prefix', required=True)
     parser.add_argument('-t', '--threads', help='threads number', required=False)
     args = parser.parse_args()
@@ -528,7 +578,7 @@ if __name__ == "__main__":
                 startcodon_dist = [x["start"] for x in hmm_hits[aln["name"]] ]
             startcodon_dists.append(startcodon_dist)
         logging.info( u'HMMs: ' + str(len(alns)))
-        generate_orfs(output, output_shortest, alns, g, startcodon_dists, int(args.threads), "pathracer")
+        generate_orfs(output, output_shortest, alns, g, startcodon_dists, args.longestorf, int(args.threads), "pathracer")
 
     if args.sequences != None:
         alns = load_mappings.load_spaligner_mapping(args.sequences)
@@ -536,7 +586,7 @@ if __name__ == "__main__":
         for a in alns:
             startcodon_dists.append([a["d"]])
         logging.info( u'Seqs: ' + str(len(alns)))
-        generate_orfs(output, output_shortest, alns, g, startcodon_dists, int(args.threads), "spaligner")
+        generate_orfs(output, output_shortest, alns, g, startcodon_dists, args.longestorf, int(args.threads), "spaligner")
 
 
 

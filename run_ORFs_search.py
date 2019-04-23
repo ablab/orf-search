@@ -49,7 +49,8 @@ def find_true_hmm_alignments(hmmer_path, proteins_file, hmms_file, threads, out_
     #count_time_and_memory("Align HMMs to genes")
     return out_file + ".dtbl", return_code
 
-def extract_ORFs_from_graph(hmms_alignments, proteins_alignments, graph_file, k, proteins_file, hmms_true_alignments, threads, out_file, out_dir):
+def extract_ORFs_from_graph(hmms_alignments, proteins_alignments, graph_file, k, proteins_file, \
+                            hmms_true_alignments, longestorf, threads, out_file, out_dir):
     com = execution_path + "/scripts/identify_gene_ends.py "
     if os.path.exists(proteins_alignments):
         com += "-s " + proteins_alignments
@@ -57,6 +58,8 @@ def extract_ORFs_from_graph(hmms_alignments, proteins_alignments, graph_file, k,
         com += " -m " + hmms_alignments + \
                " -p " + proteins_file + \
                " -d " + hmms_true_alignments
+    if longestorf:
+        com += " -f "
     com += " -g " + graph_file + " -k " + str(k) + " -t " + str(threads) +" -o " + out_file + " > " + out_dir + "/filtering_log"
     logging.info( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
@@ -91,6 +94,7 @@ if __name__ == "__main__":
     parser.add_argument('-g', '--graph', help='assembly graph in gfa-format', required=True)
     parser.add_argument('-k', '--kmer', help='assembly graph k-mer size', required=True)
     parser.add_argument('-c', '--contigs', help='fasta-file with assembly contigs', required=False)
+    parser.add_argument('-f', '--longestorf', help='generate ORFs that have stop codon before start codon', action='store_true')
     parser.add_argument('-t', '--threads', help='number of threads', required=False)
     parser.add_argument('-o', '--out', help='output directory', required=True)
     args = parser.parse_args()
@@ -131,7 +135,9 @@ if __name__ == "__main__":
         logging.error( u'No data was generated to find orfs')
         exit(-1)
 
-    orfs_fasta, return_code = extract_ORFs_from_graph(hmm_return_str, seq_return_str, args.graph, args.kmer, args.sequences, join(args.out, hmms_name + ".dtbl"), t, join(args.out, "orfs_raw"), args.out)
+    orfs_fasta, return_code = extract_ORFs_from_graph(hmm_return_str, seq_return_str, args.graph, args.kmer, \
+                                                        args.sequences, join(args.out, hmms_name + ".dtbl"), \
+                                                        args.longestorf, t, join(args.out, "orfs_raw"), args.out)
 
     if return_code != 0:
         logging.error( u'Orfs generation failed')
