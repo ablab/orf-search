@@ -46,9 +46,10 @@ def translate_str(s):
     return str(seq.translate())
 
 class Graph:
-    def __init__(self, edges, graph, paths, edge_paths):
+    def __init__(self, edges, graph, coverage, paths, edge_paths):
         self.edges = edges
         self.graph = graph
+        self.coverage = coverage
         self.paths = paths
         self.edge_paths = edge_paths
 
@@ -56,17 +57,20 @@ class Graph:
 def load_gfa_edges(gfa_filename):
     res = {}
     graph = {}
+    coverage = {}
     paths = {}
     edge_paths = {}
     rev = {"+": "-", "-": "+"}
     with open(gfa_filename, "r") as fin:
         for ln in fin.readlines():
             if ln.startswith("S"):
-                node_id, seq = ln.strip().split("\t")[1:3]
+                node_id, seq, kc = ln.strip().split("\t")[1:]
                 res[node_id + "+"] = seq
                 res[node_id + "-"] = make_rc(seq)
                 graph[node_id + "+"] = {}
                 graph[node_id + "-"] = {}
+                coverage[node_id + "+"] = float(kc[len("KC:i:"):])/len(seq)
+                coverage[node_id + "-"] = float(kc[len("KC:i:"):])/len(seq)
             elif ln.startswith("L"):
                 _, node_id1, pos1, node_id2, pos2, match  = ln.strip().split("\t")
                 graph[node_id1+pos1][node_id2+pos2] = 1
@@ -86,7 +90,7 @@ def load_gfa_edges(gfa_filename):
                     edge_paths[n_rc].append(name + "_rc")
                     path_rc.append(n_rc)
                 paths[name + "_rc"] = path_rc[::-1]
-    return Graph(res, graph, paths, edge_paths)
+    return Graph(res, graph, coverage, paths, edge_paths)
 
 
 def load_subpaths(filename):
@@ -374,7 +378,13 @@ def generate_all_paths(graph, edges, s_edge, f_edge, s_pos, e_pos, max_path_num,
     #print([max_length, min_length, "paths", len(paths), len(all_paths), max_path_num])
     return paths, len(all_paths) 
 
-def find_all_paths(graph, edges, aln, start_codons, stop_codons, startcodon_dist):
+def get_coverage(path, cov):
+    res = []
+    for e in path:
+        res.append(cov[e])
+    return sorted(res)[len(res)/2]
+
+def find_all_paths(graph, edges, coverage, aln, start_codons, stop_codons, startcodon_dist):
     s_edge = aln["path"][0]
     f_edge = aln["path"][-1]
     max_path_num = 5000
@@ -425,13 +435,14 @@ def find_all_paths(graph, edges, aln, start_codons, stop_codons, startcodon_dist
                         score /= len(startcodon_dist)
                     path_str = restore_path(edges, start_pos, end_pos, path)
                     if len(path_str) % 3 == 0:
+                        med_cov = get_coverage(path, coverage)
                         t_s = translate_str(path_str)
                         if t_s.find("*") == len(t_s) - 1:
                             paths.append({"Edges": path, "seq": path_str,\
                                           "apriori_startd_prob": score, "starts_cnt": start_num, "stops_cnt": stop_num,\
                                            "start_cnt": total_num_start, "stop_cnt": total_num_end, \
                                            "generated_all": not not_all, "cur_paths_cnt": (start_all*stop_all), \
-                                           "has_sd": has_sd, "after_stopcodon": start_codons_paths[sp]["after_stopcodon"]})
+                                           "has_sd": has_sd, "coverage": med_cov,"after_stopcodon": start_codons_paths[sp]["after_stopcodon"]})
     return paths
 
 def overlap(p1, p2, g):
@@ -512,7 +523,7 @@ def generate_orf(args):
         logging.debug(u'aln')
         start_codon_pos, stop_codon_pos = find_paths(g.graph, g.edges, aln["start"], aln["end"], aln["path"], startcodon_dist, only_longest)
         logging.debug(u'Start codon num=' + str(len(start_codon_pos)) + ' Stop codons num=' + str(len(stop_codon_pos)))
-        all_paths = find_all_paths(g.graph, g.edges, aln, start_codon_pos, stop_codon_pos, startcodon_dist)
+        all_paths = find_all_paths(g.graph, g.edges, g.coverage, aln, start_codon_pos, stop_codon_pos, startcodon_dist)
         all_paths = compare_with_contig_paths(aln["name"], all_paths, g)
         logging.debug(u'Paths num=' + str(len(all_paths)))
         return {"name": aln["name"], "all_paths": all_paths}
