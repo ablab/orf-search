@@ -427,8 +427,9 @@ def find_all_paths(graph, edges, coverage, aln, start_codons, stop_codons, start
             for start_path in start_codons_paths[sp]["paths"]:
                 for end_path in stop_codons_paths[ep]["paths"]:
                     path = start_path[0][:-1] + aln["path"] + end_path[0][1:]
-                    score = 0.5
+                    score = None
                     if len(startcodon_dist) > 0:
+                        score = 0
                         for d in startcodon_dist:
                             if abs(start_path[1] - d) < 50:
                                 score += 1.0

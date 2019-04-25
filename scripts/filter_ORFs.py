@@ -98,14 +98,67 @@ def leave_unknown(orfs, known_proteins):
             res.append(orf)
     return res
 
-def merge(orfs):
-    seq_set1 = set()
-    seq_set2 = set()
-    for orf in orfs:
-        if "pathracer" in orf.name:
-            seq_set1.add(orf.name)
-        if "spaligner" in orf.name:
-            seq_set2.add(orf.name)
+def cluster_orfs(orfs):
+    clusters = []
+    for o in orfs:
+        c_id = -1
+        paths = set()
+        for n in o.name.split(";"):
+            if len(n) > 0:
+                lst = n.split("|")
+            paths.add(lst[1])
+        for i in range(len(clusters)):
+            if len(paths & clusters[i][0]) > 0:
+                c_id = i
+                break
+        if c_id == -1:
+            clusters.append([paths, set({o})])
+        else:
+            clusters[c_id][0] = paths & clusters[c_id][0]
+            clusters[c_id][1].add(o)
+
+    res = []
+    for i in range(len(clusters)):
+        for orf in clusters[i][1]:
+            res.append(make_record(orf.seq, str(i) + "|" + orf.id, str(i) + "|" + orf.name))
+    best_orfs = []
+    i = 0
+    for c in clusters:
+        suffix = "_best"
+        after_stopcodon = set()
+        for o in c[1]:
+            for n in o.name.split(";"):
+                if len(n) > 0:
+                    lst = n.split("|")
+                if lst[-1].endswith("True"):
+                    after_stopcodon.add(o)
+        if len(after_stopcodon) == 0:
+            after_stopcodon = c[1]
+        best_prob = 0
+        best_orf = None
+        has_best = False
+        for o in after_stopcodon:
+            for n in o.name.split(";"):
+                if len(n) > 0:
+                    lst = n.split("|")
+                prob = 0
+                for it in lst:
+                    if it.startswith("apriori_startd_prob=") and not it.endswith("None"):
+                        c_prob = float(it[len("apriori_startd_prob="):])
+                        if c_prob > prob:
+                            prob = c_prob
+            if prob > best_prob:
+                best_orf = o
+                has_best = True
+        if not has_best:
+            suffix = "_longest"
+            for o in after_stopcodon:
+                if not has_best or len(o.seq) > len(best_orf.seq):
+                    best_orf = o
+                    has_best = True
+        best_orfs.append(make_record(best_orf.seq, str(i) + suffix + "|" + best_orf.id, str(i) + suffix + "|"  + best_orf.name))
+        i += 1
+    return best_orfs, res
 
 
 if __name__ == "__main__":
@@ -128,10 +181,12 @@ if __name__ == "__main__":
         orfs = align_with_nucmer(orfs, args.orfs, args.contigs, args.out, t)
     orfs = translate_orfs(orfs)
     orfs = leave_unique(orfs)
-    if args.proteins != None:
-        known_proteins = load_fasta(args.proteins)
-        orfs = leave_unknown(orfs, known_proteins)
+    # if args.proteins != None:
+    #     known_proteins = load_fasta(args.proteins)
+    #     orfs = leave_unknown(orfs, known_proteins)
     logging.info( u'Resulting ORFs: ' + str(len(orfs)))
+    best_orfs, orfs = cluster_orfs(orfs)
+    logging.info( u'Resulting clusters: ' + str(len(best_orfs)))
     save_fasta(args.out, orfs)
-    merge(orfs)
+    save_fasta(args.out + "_best_in_cluster", best_orfs)
 
