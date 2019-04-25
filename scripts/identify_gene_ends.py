@@ -356,7 +356,7 @@ def search_all_path(cur_edge, s_pos, e_pos, cur_len, final_edge, path, paths, al
     cur_edges[cur_edge] -= 1
     return
 
-def generate_all_paths(graph, edges, s_edge, f_edge, s_pos, e_pos, max_path_num, max_length = 1500, min_length = 0):
+def find_subgraph(graph, edges, s_edge, f_edge):
     edges_intersection = set()
     color = set()
     find_connected_edges(s_edge, graph, color)
@@ -369,6 +369,10 @@ def generate_all_paths(graph, edges, s_edge, f_edge, s_pos, e_pos, max_path_num,
         c_e = revert(e)
         if c_e in connected_to_finish:
             edges_intersection.add(e)
+    return edges_intersection
+
+def generate_all_paths(graph, edges, s_edge, f_edge, s_pos, e_pos, max_path_num, max_length = 1500, min_length = 0):
+    edges_intersection = find_subgraph(graph, edges, s_edge, f_edge)
     paths = []
     cur_edges = {}
     for e in edges:
@@ -521,7 +525,7 @@ def compare_with_contig_paths(name, paths, g):
 def generate_orf(args):
     aln, g, startcodon_dist, only_longest = args[0], args[1], args[2], args[3]
     if aln["name"] != "Cry22_MR":
-        logging.debug(u'aln')
+        logging.debug(aln["name"])
         start_codon_pos, stop_codon_pos = find_paths(g.graph, g.edges, aln["start"], aln["end"], aln["path"], startcodon_dist, only_longest)
         logging.debug(u'Start codon num=' + str(len(start_codon_pos)) + ' Stop codons num=' + str(len(stop_codon_pos)))
         all_paths = find_all_paths(g.graph, g.edges, g.coverage, aln, start_codon_pos, stop_codon_pos, startcodon_dist)
@@ -551,6 +555,8 @@ if __name__ == "__main__":
     parser.add_argument('-k', '--kmer', help='k-mer size in graph', required=True)
     parser.add_argument('-p', '--proteins',  help='list of genes to estimate hmms position on genes (domtbl has to be set)', required=False)
     parser.add_argument('-d', '--domtbl',  help='HMMer alignment of hmms to genes (genes has to be set)', required=False)
+    parser.add_argument('-e', '--evalue',  help='minimum e-value for HMM alignment', default=0.000000001)
+    parser.add_argument('-l', '--minlen',  help='minimum length', default=0.9)
     parser.add_argument('-f', '--longestorf', help='generate ORFs that have stop codon before start codon', action='store_true')
     parser.add_argument('-o', '--out',  help='output prefix', required=True)
     parser.add_argument('-t', '--threads', help='threads number', required=False)
@@ -582,7 +588,7 @@ if __name__ == "__main__":
         alns = []
         for f in filenames:
             f_path = join(args.hmms, f)
-            alns.extend(load_mappings.load_pathracer_mapping(f_path, g.edges, K))
+            alns.extend(load_mappings.load_pathracer_mapping(f_path, g.edges, float(args.minlen), float(args.evalue), K))
         startcodon_dists = []
         for aln in alns:
             startcodon_dist = []

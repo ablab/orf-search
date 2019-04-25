@@ -58,7 +58,7 @@ def merge(edges, K, seq_name):
     res = res[offset:]
     return SeqRecord(res, id=seq_name)
 
-def hmmer_results_parser(hmm_filename, edges, K, sequences = []):
+def hmmer_results_parser(hmm_filename, edges, len_th, evalue_th, K, sequences = []):
     sequences_hits = {}
     hmm_hits = {}
     hits_lst = []
@@ -72,7 +72,7 @@ def hmmer_results_parser(hmm_filename, edges, K, sequences = []):
                 for f in h.fragments:
                     hit_len = f.hit_end - f.hit_start
                     seq_s, seq_e = f.query_start, f.query_end - 1
-                    if hit_len > 0.9*hmm_len and hit_evalue < 0.000000001:
+                    if hit_len > len_th*hmm_len and hit_evalue < evalue_th:
                         if len(sequences) > 0:
                             cur_seq = sequences[seq_name]
                         else:
@@ -89,11 +89,11 @@ def hmmer_results_parser(hmm_filename, edges, K, sequences = []):
 
 def load_true_crygenes(genes_file, hmm_filename, edges, K):
     genes = load_sequences(genes_file)
-    hits_lst, genes_hits, hmm_hits = hmmer_results_parser(hmm_filename, edges, K, genes)
+    hits_lst, genes_hits, hmm_hits = hmmer_results_parser(hmm_filename, edges, 0.9, 0.000000001, K, genes)
     return hmm_hits
 
-def load_pathracer_mapping(domtblfile, edges, K):
-    hits_lst, _, _ = hmmer_results_parser(domtblfile, edges, K)
+def load_pathracer_mapping(domtblfile, edges, len_th, evalue_th, K):
+    hits_lst, _, _ = hmmer_results_parser(domtblfile, edges, len_th, evalue_th, K)
     pathracer_lst = []
     for hit in hits_lst:
         path, shift = hit["seq_name"].split("/")[0].split("_"), int(hit["seq_name"].split("/")[1])

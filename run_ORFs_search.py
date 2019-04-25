@@ -22,10 +22,10 @@ execution_path = os.path.dirname(os.path.abspath(__file__))
 #     logging.info( u'Script: ' + script_name + u' Total CPU time: {}:{:.2f}'.format(h, m) \
 #                       + u' Total memory: {} kb'.format(memory))
 
-def align_hmms(hmms_file, graph_file, k, threads, out_dir):
+def align_hmms(hmms_file, graph_file, k, evalue, threads, out_dir):
     com = execution_path + "/aligners/pathracer " + hmms_file + " " + graph_file + " " + str(k) \
         + " --output " + out_dir + " --rescore --annotate-graph --threads " + str(threads) \
-        + " -E 1e-6 --domE 1e-6 --max_size 500000 > " + out_dir + ".log"
+        + " -E " + evalue + " --domE " + evalue + " --max_size 500000 > " + out_dir + ".log"
     logging.info( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
     #count_time_and_memory("Pathracer")
@@ -40,9 +40,9 @@ def align_sequences(graph_file, k, protein_file, threads, out_prefix):
     #count_time_and_memory("SPAligner")
     return out_prefix + ".fasta", return_code
 
-def find_true_hmm_alignments(hmmer_path, proteins_file, hmms_file, threads, out_file):
+def find_true_hmm_alignments(hmmer_path, proteins_file, hmms_file, evalue, threads, out_file):
     com = hmmer_path + "hmmsearch --domtblout " + out_file + \
-                    ".dtbl -E 0.000001 --cpu " + str(threads)  + " " + hmms_file + " " + proteins_file \
+                    ".dtbl -E " + evalue + " --cpu " + str(threads)  + " " + hmms_file + " " + proteins_file \
                     + " > " + out_file + "_true.log"
     logging.info( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
@@ -50,17 +50,19 @@ def find_true_hmm_alignments(hmmer_path, proteins_file, hmms_file, threads, out_
     return out_file + ".dtbl", return_code
 
 def extract_ORFs_from_graph(hmms_alignments, proteins_alignments, graph_file, k, proteins_file, \
-                            hmms_true_alignments, longestorf, threads, out_file, out_dir):
+                            hmms_true_alignments, longestorf, minlen, evalue, threads, out_file, out_dir):
     com = execution_path + "/scripts/identify_gene_ends.py "
     if os.path.exists(proteins_alignments):
         com += "-s " + proteins_alignments
     if os.path.exists(hmms_alignments):
         com += " -m " + hmms_alignments + \
                " -p " + proteins_file + \
-               " -d " + hmms_true_alignments
+               " -d " + hmms_true_alignments + \
+               " -l " + str(minlen) + \
+               " -e " + str(evalue)
     if longestorf:
         com += " -f "
-    com += " -g " + graph_file + " -k " + str(k) + " -t " + str(threads) +" -o " + out_file + " > " + out_dir + "/filtering_log"
+    com += " -g " + graph_file + " -k " + str(k) + " -t " + str(threads) +" -o " + out_file
     logging.info( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
     #count_time_and_memory("Generate ORFs")
@@ -96,6 +98,8 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--contigs', help='fasta-file with assembly contigs', required=False)
     parser.add_argument('-f', '--longestorf', help='generate ORFs that have stop codon before start codon', action='store_true')
     parser.add_argument('-t', '--threads', help='number of threads', required=False)
+    parser.add_argument('-e', '--evalue',  help='minimum e-value for HMM alignment', default=0.000000001)
+    parser.add_argument('-l', '--minlen',  help='minimum length', default=0.9)
     parser.add_argument('-o', '--out', help='output directory', required=True)
     args = parser.parse_args()
 
@@ -116,11 +120,11 @@ if __name__ == "__main__":
         t = int(args.threads)
 
     hmms_name = ".".join(args.hmms.split("/")[-1].split(".")[0:-1])
-    hmm_return_str, hmm_return_code = align_hmms(args.hmms, args.graph, args.kmer, min(t, 16), join(args.out, hmms_name))
+    hmm_return_str, hmm_return_code = align_hmms(args.hmms, args.graph, args.kmer, str(args.evalue), min(t, 16), join(args.out, hmms_name))
     if hmm_return_code != 0:
         logging.warning( u'HMM alignment failed')
     if hmm_return_code == 0 and args.sequences != None and not os.path.exists(join(args.out, hmms_name + ".dtbl")):
-        find_true_hmm_alignments(hmmer_path, args.sequences, args.hmms, t, join(args.out, hmms_name))
+        find_true_hmm_alignments(hmmer_path, args.sequences, args.hmms, str(args.evalue), t, join(args.out, hmms_name))
 
     if args.sequences != None and args.runspaligner:
         seq_name = ".".join(args.sequences.split("/")[-1].split(".")[0:-1])
@@ -137,7 +141,7 @@ if __name__ == "__main__":
 
     orfs_fasta, return_code = extract_ORFs_from_graph(hmm_return_str, seq_return_str, args.graph, args.kmer, \
                                                         args.sequences, join(args.out, hmms_name + ".dtbl"), \
-                                                        args.longestorf, t, join(args.out, "orfs_raw"), args.out)
+                                                        args.longestorf, str(args.minlen), str(args.evalue), t, join(args.out, "orfs_raw"), args.out)
 
     if return_code != 0:
         logging.error( u'Orfs generation failed')
