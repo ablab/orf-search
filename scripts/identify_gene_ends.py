@@ -521,24 +521,48 @@ def compare_with_contig_paths(name, paths, g):
                 logging.debug(u'Not supported by contigs')
     return res_path
 
+def compare_with_contig_paths2(name, paths, g, uniqueedge_len):
+    res_path = []
+    for p in paths:
+        contigs = set()
+        for e in p["Edges"]:
+            if e in g.edge_paths:
+                for c in g.edge_paths[e]:
+                    contigs.add(c)
+        supported_edges = set()
+        supported = True
+        for c in contigs:
+            overlap_len = overlap(p["Edges"], g.paths[c], g)
+            has_good_overlap = supported_by_contig(p["Edges"], g.paths[c], g, overlap_len)
+            if not has_good_overlap:
+                for e in g.paths[c]:
+                    if e in p["Edges"] and len(g.edges[e]) > uniqueedge_len:
+                        supported = False
+                        break
+            if not supported:
+                break
+        if supported:
+            res_path.append(p)
+    return res_path
+
 
 def generate_orf(args):
-    aln, g, startcodon_dist, only_longest = args[0], args[1], args[2], args[3]
+    aln, g, startcodon_dist, only_longest, uniqueedge = args[0], args[1], args[2], args[3], args[4]
     if aln["name"] != "Cry22_MR":
         logging.debug(aln["name"])
         start_codon_pos, stop_codon_pos = find_paths(g.graph, g.edges, aln["start"], aln["end"], aln["path"], startcodon_dist, only_longest)
         logging.debug(u'Start codon num=' + str(len(start_codon_pos)) + ' Stop codons num=' + str(len(stop_codon_pos)))
         all_paths = find_all_paths(g.graph, g.edges, g.coverage, aln, start_codon_pos, stop_codon_pos, startcodon_dist)
-        all_paths = compare_with_contig_paths(aln["name"], all_paths, g)
+        all_paths = compare_with_contig_paths2(aln["name"], all_paths, g, uniqueedge)
         logging.debug(u'Paths num=' + str(len(all_paths)))
         return {"name": aln["name"], "all_paths": all_paths}
     else:
         return {"name": aln["name"], "all_paths": []}
 
 
-def generate_orfs(output, output_shortest, alns, g, startcodon_dists, only_longest, t, prefix):
+def generate_orfs(output, output_shortest, alns, g, startcodon_dists, only_longest, uniqueedge, t, prefix):
     logging.debug( u'Threads ' + str(t) + u' alns ' + str(len(alns)))
-    all_orfs = Parallel(n_jobs=t, require='sharedmem')(delayed(generate_orf)([alns[i], g, startcodon_dists[i], only_longest]) for i in range(len(alns)))
+    all_orfs = Parallel(n_jobs=t, require='sharedmem')(delayed(generate_orf)([alns[i], g, startcodon_dists[i], only_longest, uniqueedge]) for i in range(len(alns)))
     with open(output, "a+") as fout:    
         for orf in all_orfs:
             name = orf["name"]
@@ -558,6 +582,7 @@ if __name__ == "__main__":
     parser.add_argument('-e', '--evalue',  help='minimum e-value for HMM alignment', default=0.000000001)
     parser.add_argument('-l', '--minlen',  help='minimum length', default=0.9)
     parser.add_argument('-f', '--longestorf', help='generate ORFs that have stop codon before start codon', action='store_true')
+    parser.add_argument('-u', '--uniqueedge',  help='length of unique edges in nucs', default=300, type=int)
     parser.add_argument('-o', '--out',  help='output prefix', required=True)
     parser.add_argument('-t', '--threads', help='threads number', required=False)
     args = parser.parse_args()
@@ -596,7 +621,7 @@ if __name__ == "__main__":
                 startcodon_dist = [x["start"] for x in hmm_hits[aln["name"]] ]
             startcodon_dists.append(startcodon_dist)
         logging.info( u'HMMs: ' + str(len(alns)))
-        generate_orfs(output, output_shortest, alns, g, startcodon_dists, args.longestorf, int(args.threads), "pathracer")
+        generate_orfs(output, output_shortest, alns, g, startcodon_dists, args.longestorf, args.uniqueedge, int(args.threads), "pathracer")
 
     if args.sequences != None:
         alns = load_mappings.load_spaligner_mapping(args.sequences)
@@ -604,7 +629,7 @@ if __name__ == "__main__":
         for a in alns:
             startcodon_dists.append([a["d"]])
         logging.info( u'Seqs: ' + str(len(alns)))
-        generate_orfs(output, output_shortest, alns, g, startcodon_dists, args.longestorf, int(args.threads), "spaligner")
+        generate_orfs(output, output_shortest, alns, g, startcodon_dists, args.longestorf, args.uniqueedge, int(args.threads), "spaligner")
 
 
 
