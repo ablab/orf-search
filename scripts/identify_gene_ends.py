@@ -41,6 +41,14 @@ def revert(edge):
         c_edge = edge[:-1] + '-'
     return c_edge
 
+def revert2(edge, pos, edges):
+    if edge.endswith("-"):
+        c_edge = edge[:-1] + '+'
+    else:
+        c_edge = edge[:-1] + '-'
+    c_pos = len(edges[edge]) - pos
+    return c_edge, c_pos
+
 def translate_str(s):
     seq = Seq(s)
     return str(seq.translate())
@@ -64,7 +72,8 @@ def load_gfa_edges(gfa_filename):
     with open(gfa_filename, "r") as fin:
         for ln in fin.readlines():
             if ln.startswith("S"):
-                node_id, seq, kc = ln.strip().split("\t")[1:]
+                lst = ln.strip().split("\t")[1:]
+                node_id, seq, kc = lst[0], lst[1], lst[-1] 
                 res[node_id + "+"] = seq
                 res[node_id + "-"] = make_rc(seq)
                 graph[node_id + "+"] = {}
@@ -336,6 +345,18 @@ def find_connected_edges(cur_edge, graph, color):
                 color.add(a_edge)
                 q.append(a_edge)
 
+def find_connected_edges_tagged(cur_edge, cur_frame, graph, edges, color):
+    color.add(cur_edge + "_" + str(cur_frame))
+    q = [[cur_edge, cur_frame]]
+    l = 0
+    while len(q) - l > 0:
+        c_edge, c_frame = q[l][0], q[l][1]
+        l += 1
+        for a_edge in graph[c_edge]:
+            if a_edge + "_" + str((c_frame + len(edges[a_edge]) - K) % 3) not in color:
+                color.add(a_edge + "_" + str((c_frame + len(edges[a_edge]) - K) % 3))
+                q.append([a_edge, (c_frame + len(edges[a_edge]) - K) % 3])
+
 def search_all_path(cur_edge, s_pos, e_pos, cur_len, final_edge, path, paths, all_paths, cur_edges, max_path_num, max_length, min_length, edges_intersection, edges, graph):
     if cur_edges[cur_edge] == 2:
         return
@@ -356,6 +377,28 @@ def search_all_path(cur_edge, s_pos, e_pos, cur_len, final_edge, path, paths, al
     cur_edges[cur_edge] -= 1
     return
 
+def search_all_path_tagged(cur_edge, s_pos, e_pos, cur_len, final_edge, path, paths, all_paths, cur_edges, max_path_num, max_length, min_length, edges_intersection, edges, graph):
+    if cur_edges[cur_edge] == 2:
+        return
+    cur_edges[cur_edge] += 1
+    for a_edge in graph[cur_edge]:
+        if len(all_paths) < max_path_num:
+            if a_edge + "_" + str((cur_len + len(edges[a_edge]) - K )%3) in edges_intersection or\
+                a_edge == final_edge and (cur_len + e_pos + 1) % 3 == 0: 
+                new_path = path[:]
+                new_path.append(a_edge)
+                if a_edge != final_edge:
+                    if cur_len + len(edges[a_edge]) - K < max_length:
+                        search_all_path_tagged(a_edge, s_pos, e_pos, cur_len + len(edges[a_edge]) - K, final_edge,\
+                                        new_path, paths, all_paths, cur_edges, max_path_num, max_length, min_length, edges_intersection, edges, graph)
+                else:
+                    path_len = restore_path_len(edges, s_pos, e_pos, new_path)
+                    all_paths.append(path_len)
+                    if path_len < max_length and path_len%3 == 0 and path_len > min_length:
+                        paths.append([new_path, path_len/3])
+    cur_edges[cur_edge] -= 1
+    return
+
 def find_subgraph(graph, edges, s_edge, f_edge):
     edges_intersection = set()
     color = set()
@@ -371,15 +414,48 @@ def find_subgraph(graph, edges, s_edge, f_edge):
             edges_intersection.add(e)
     return edges_intersection
 
+def find_subgraph_tagged(graph, edges, s_edge, s_pos, f_edge, f_pos):
+    edges_intersection = set()
+    color = set()
+    if s_pos > len(edges[s_edge]) - K:
+        start = 3 - (s_pos - (len(edges[s_edge]) - K)) % 3
+    else:
+        start = ((len(edges[s_edge]) - K) - s_pos) % 3
+    find_connected_edges_tagged(s_edge, start, graph, edges, color)
+    connected_to_start = color.copy()
+    color = set()
+    cf_edge, cf_pos = revert2(f_edge, f_pos, edges)
+    if cf_pos > len(edges[cf_edge]) - K:
+        start = 3 - (cf_pos - (len(edges[cf_edge]) - K)) % 3
+    else:
+        start = ((len(edges[cf_edge]) - K) - cf_pos) % 3
+    find_connected_edges_tagged(cf_edge, start, graph, edges, color)
+    connected_to_finish = color
+    for e in connected_to_start:
+        c_e = revert(e.split("_")[0])
+        if c_e == cf_edge:
+            if (f_pos + 1 < len(edges[c_e]) - K and int(e.split("_")[1]) == (len(edges[c_e]) - K - f_pos - 1)%3) \
+                or (f_pos + 1 >= len(edges[c_e]) - K and (int(e.split("_")[1]) + f_pos + 1 - (len(edges[c_e]) - K))%3 == 0):
+                edges_intersection.add(e.split("_")[0] + "_0")
+        elif c_e + "_" + str( (3 + int(e.split("_")[1]) - (len(edges[c_e]) - 2*K)%3 ) % 3 ) in connected_to_finish:
+            edges_intersection.add(e)
+    return edges_intersection
+
 def generate_all_paths(graph, edges, s_edge, f_edge, s_pos, e_pos, max_path_num, max_length = 1500, min_length = 0):
-    edges_intersection = find_subgraph(graph, edges, s_edge, f_edge)
+    #edges_intersection = find_subgraph(graph, edges, s_edge, f_edge)
+    edges_intersection_tagged = find_subgraph_tagged(graph, edges, s_edge, s_pos, f_edge, e_pos)
     paths = []
     cur_edges = {}
     for e in edges:
         cur_edges[e] = 0
     all_paths = []
-    search_all_path(s_edge, s_pos, e_pos, 0, f_edge, [s_edge], paths, all_paths, cur_edges, max_path_num, max_length, min_length, edges_intersection, edges, graph)
-    #print([max_length, min_length, "paths", len(paths), len(all_paths), max_path_num])
+    if s_pos > len(edges[s_edge]) - K:
+        start = 3 - (s_pos - (len(edges[s_edge]) - K)) % 3
+    else:
+        start = ((len(edges[s_edge]) - K) - s_pos)
+    search_all_path_tagged(s_edge, s_pos, e_pos, start, f_edge, [s_edge], paths, all_paths, cur_edges, max_path_num, max_length, min_length, edges_intersection_tagged, edges, graph)
+    #search_all_path(s_edge, s_pos, e_pos, 0, f_edge, [s_edge], paths, all_paths, cur_edges, max_path_num, max_length, min_length, edges_intersection, edges, graph)
+    # print([max_length, min_length, "paths", len(paths), len(all_paths), max_path_num])
     return paths, len(all_paths) 
 
 def get_coverage(path, cov):
@@ -548,7 +624,7 @@ def compare_with_contig_paths2(name, paths, g, uniqueedge_len):
 
 def generate_orf(args):
     aln, g, startcodon_dist, only_longest, uniqueedge = args[0], args[1], args[2], args[3], args[4]
-    if aln["name"] != "Cry22_MR":
+    if aln["name"] != "Cry22_MR" and aln["name"] == "Binary_toxB_3":
         logging.debug(aln["name"])
         start_codon_pos, stop_codon_pos = find_paths(g.graph, g.edges, aln["start"], aln["end"], aln["path"], startcodon_dist, only_longest)
         logging.debug(u'Start codon num=' + str(len(start_codon_pos)) + ' Stop codons num=' + str(len(stop_codon_pos)))
@@ -586,7 +662,7 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--out',  help='output prefix', required=True)
     parser.add_argument('-t', '--threads', help='threads number', required=False)
     args = parser.parse_args()
-    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'.log')
+    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG)#, filename = args.out + u'.log')
     if args.hmms == None and args.sequences == None:
         logging.error( u'Please provide sequences or hmm alignments')
         exit(-1)
