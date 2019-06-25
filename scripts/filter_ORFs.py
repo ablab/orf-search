@@ -15,7 +15,30 @@ from os import listdir
 from os.path import isfile, isdir, join
 
 import re
+import edlib
 
+def edist(lst):
+    if len(str(lst[0])) == 0:
+        return len(str(lst[1]))
+    if len(str(lst[1])) == 0:
+        return len(str(lst[0]))
+    result = edlib.align(str(lst[0]), str(lst[1]), mode="NW", task="path")
+    return result["editDistance"], result["cigar"]
+
+def aai(ar):
+    p1, p2 = str(ar[0]), str(ar[1])
+    if p1.endswith("*"):
+        p1 = p1[:-1]
+    if p2.endswith("*"):
+        p2 = p2[:-1]
+    ed, cigar = edist([str(p1), str(p2)])
+    matches = re.findall(r'\d+=', cigar)
+    aai = 0.0
+    for m in matches:
+        aai += int(m[:-1])
+    aai /= max(len(p1), len(p2))
+    return aai*100
+    
 def load_fasta(filename):
     record_lst = list(SeqIO.parse(filename, "fasta"))
     return record_lst
@@ -98,67 +121,62 @@ def leave_unknown(orfs, known_proteins):
             res.append(orf)
     return res
 
-def cluster_orfs(orfs):
+def cluster_orfs_new(orfs):
     clusters = []
-    for o in orfs:
-        c_id = -1
-        paths = set()
-        for n in o.name.split(";"):
-            if len(n) > 0:
-                lst = n.split("|")
-            paths.add(lst[1])
-        for i in range(len(clusters)):
-            if len(paths & clusters[i][0]) > 0:
-                c_id = i
-                break
-        if c_id == -1:
-            clusters.append([paths, set({o})])
-        else:
-            clusters[c_id][0] = paths & clusters[c_id][0]
-            clusters[c_id][1].add(o)
-
-    res = []
+    for i in range(len(orfs)):
+        new_clusters = []
+        first_cluster = -1
+        for cl in clusters:
+            in_cluster = False
+            for o in cl:
+                if aai([o.seq, orfs[i].seq]) > 90:
+                    #print o.id, orfs[i].id, aai([o.seq, orfs[i].seq])
+                    in_cluster = True
+                    break
+            if in_cluster:
+                if first_cluster == -1:
+                    new_clusters.append(cl)
+                    new_clusters[-1].add(orfs[i])
+                    first_cluster = len(new_clusters) - 1
+                else:
+                    new_clusters[first_cluster] |= cl
+            else:
+                new_clusters.append(cl)
+        if first_cluster == -1:
+            new_clusters.append(set({orfs[i]}))
+        clusters = []
+        for cl in new_clusters:
+            clusters.append(cl)
+    print len(clusters)
+    new_clusters = []
     for i in range(len(clusters)):
-        for orf in clusters[i][1]:
-            res.append(make_record(orf.seq, str(i) + "|" + orf.id, str(i) + "|" + orf.name))
-    best_orfs = []
-    i = 0
-    for c in clusters:
-        suffix = "_best"
-        after_stopcodon = set()
-        for o in c[1]:
-            for n in o.name.split(";"):
-                if len(n) > 0:
-                    lst = n.split("|")
-                if lst[-1].endswith("True"):
-                    after_stopcodon.add(o)
-        if len(after_stopcodon) == 0:
-            after_stopcodon = c[1]
-        best_prob = 0
-        best_orf = None
-        has_best = False
-        for o in after_stopcodon:
-            for n in o.name.split(";"):
-                if len(n) > 0:
-                    lst = n.split("|")
-                prob = 0
-                for it in lst:
-                    if it.startswith("apriori_startd_prob=") and not it.endswith("None"):
-                        c_prob = float(it[len("apriori_startd_prob="):])
-                        if c_prob > prob:
-                            prob = c_prob
-            if prob > best_prob:
-                best_orf = o
-                has_best = True
-        if not has_best:
-            suffix = "_longest"
-            for o in after_stopcodon:
-                if not has_best or len(o.seq) > len(best_orf.seq):
-                    best_orf = o
-                    has_best = True
-        best_orfs.append(make_record(best_orf.seq, str(i) + suffix + "|" + best_orf.id, str(i) + suffix + "|"  + best_orf.name))
-        i += 1
-    return best_orfs, res
+        is_covered = False
+        for j in range(len(clusters)):
+            if i != j and not is_covered:
+                for it_i in clusters[i]:
+                    for it_j in clusters[j]:
+                        if it_i.seq in it_j.seq:
+                            is_covered = True
+                            break
+                    if is_covered:
+                        break
+            else:
+                cur_cluster = set()
+                for it_i in clusters[i]:
+                    is_covered2 = False
+                    for it_j in clusters[j]:
+                        if len(it_i.seq) < len(it_j.seq) and it_i.seq in it_j.seq:
+                            is_covered2 = True
+                            break
+                    if not is_covered2:
+                        cur_cluster.add(it_i)
+        if not is_covered:
+            new_clusters.append(cur_cluster)
+    res = []
+    for i in range(len(new_clusters)):
+        for orf in new_clusters[i]:
+            res.append(make_record(orf.seq, str(i) + "|" + orf.id.split(";")[0], str(i) + "|" + orf.name.split(";")[0]))
+    return res
 
 
 if __name__ == "__main__":
@@ -181,12 +199,12 @@ if __name__ == "__main__":
         orfs = align_with_nucmer(orfs, args.orfs, args.contigs, args.out, t)
     orfs = translate_orfs(orfs)
     orfs = leave_unique(orfs)
-    # if args.proteins != None:
-    #     known_proteins = load_fasta(args.proteins)
-    #     orfs = leave_unknown(orfs, known_proteins)
+    if args.proteins != None:
+        known_proteins = load_fasta(args.proteins)
+        orfs = leave_unknown(orfs, known_proteins)
     logging.info( u'Resulting ORFs: ' + str(len(orfs)))
-    best_orfs, orfs = cluster_orfs(orfs)
-    logging.info( u'Resulting clusters: ' + str(len(best_orfs)))
     save_fasta(args.out, orfs)
-    save_fasta(args.out + "_best_in_cluster", best_orfs)
+    clustered_orfs = cluster_orfs_new(orfs)
+    logging.info( u'Resulting clusters: ' + str(len(clustered_orfs)))
+    save_fasta(args.out + "_clustered", clustered_orfs)
 
