@@ -519,7 +519,7 @@ def find_all_paths(graph, edges, coverage, aln, start_codons, stop_codons, start
                         med_cov = get_coverage(path, coverage)
                         t_s = translate_str(path_str)
                         if t_s.find("*") == len(t_s) - 1:
-                            paths.append({"Edges": path, "seq": path_str,\
+                            paths.append({"Edges": path, "seq": path_str, "prefix": aln["prefix"],\
                                           "apriori_startd_prob": score, "starts_cnt": start_num, "stops_cnt": stop_num,\
                                            "start_cnt": total_num_start, "stop_cnt": total_num_end, \
                                            "generated_all": not not_all, "cur_paths_cnt": (start_all*stop_all), \
@@ -624,7 +624,7 @@ def compare_with_contig_paths2(name, paths, g, uniqueedge_len):
 
 def generate_orf(args):
     aln, g, startcodon_dist, only_longest, uniqueedge = args[0], args[1], args[2], args[3], args[4]
-    if aln["name"] != "Cry22_MR" and aln["name"] == "Binary_toxB_3":
+    if aln["name"] != "Cry22_MR":
         logging.debug(aln["name"])
         start_codon_pos, stop_codon_pos = find_paths(g.graph, g.edges, aln["start"], aln["end"], aln["path"], startcodon_dist, only_longest)
         logging.debug(u'Start codon num=' + str(len(start_codon_pos)) + ' Stop codons num=' + str(len(stop_codon_pos)))
@@ -635,16 +635,66 @@ def generate_orf(args):
     else:
         return {"name": aln["name"], "all_paths": []}
 
+def is_inside(edges, aln1, aln2):
+    path1_s = ",".join(aln1["path"])
+    path2_s = ",".join(aln2["path"])
+    if path1_s in path2_s and \
+      (path1_s != path2_s or \
+      (path1_s == path2_s and (aln1["start"] > aln2["start"] or aln1["end"] < aln2["end"]))):
+        index = 0
+        for i in range(len(aln2["path"])):
+            j = 0
+            while j < len(aln1["path"]) and i + j < len(aln2["path"]) and aln2["path"][i + j] == aln1["path"][j]:
+                j += 1
+            if j == len(aln1["path"]):
+                index = i
+                break
+        if i == 0 and aln2["start"] > aln1["start"] - 1:
+            return False
+        ln = restore_path_len(edges, aln2["start"], aln1["start"] - 1, aln2["path"][:i + 1])
+        if ln % 3 == 0:
+            return True
+        else:
+            return False
+    else:
+        return False
 
-def generate_orfs(output, output_shortest, alns, g, startcodon_dists, only_longest, uniqueedge, t, prefix):
+def remove_covered_orfs(edges, alns, startcodon_dists):
+    res_alns1 = []
+    res_startcodon_dists1 = []
+    for i in range(len(alns)):
+        is_covered = False
+        path_str = restore_path(edges, alns[i]["start"], alns[i]["end"], alns[i]["path"])
+        if len(path_str) % 3 == 0:
+            t_s = translate_str(path_str)
+            if t_s.find("*") == len(t_s) - 1 or t_s.find("*") == -1:
+                res_alns1.append(alns[i])
+                res_startcodon_dists1.append(startcodon_dists[i])
+    res_alns = []
+    res_startcodon_dists = []
+    for i in range(len(res_alns1)):
+        is_covered = False
+        for j in range(len(res_alns1)):
+            if is_inside(edges, res_alns1[i], res_alns1[j]):
+                is_covered = True
+                break
+        if not is_covered:
+            res_alns.append(res_alns1[i])
+            res_startcodon_dists.append(res_startcodon_dists1[i])
+    logging.info( u'Reduced number of anchors from ' + str(len(alns)) + ' to ' + str(len(res_alns)))
+    return res_alns, res_startcodon_dists
+
+
+def generate_orfs(output, output_shortest, alns, g, startcodon_dists, only_longest, uniqueedge, t):
     logging.debug( u'Threads ' + str(t) + u' alns ' + str(len(alns)))
+    alns, startcodon_dists = remove_covered_orfs(g.edges, alns, startcodon_dists)
     all_orfs = Parallel(n_jobs=t, require='sharedmem')(delayed(generate_orf)([alns[i], g, startcodon_dists[i], only_longest, uniqueedge]) for i in range(len(alns)))
     with open(output, "a+") as fout:    
         for orf in all_orfs:
             name = orf["name"]
             for path in orf["all_paths"]:
-                fout.write(">" + prefix + "_" + name + "|Edges=" + "_".join(path["Edges"]) + "|" + \
-                           "|".join([k + "=" + str(path[k]) for k in path.keys() if k not in {"Edges", "seq"}]) + "\n")
+                fout.write(">" + path["prefix"] + "_" + name + "|Edges=" + "_".join(path["Edges"]) + "|" + \
+                           "|".join([k + "=" + str(path[k]) for k in path.keys() if k not in {"Edges", "seq", "prefix"}]) + "\n")
                 fout.write(path["seq"] + "\n")
 
 if __name__ == "__main__":
@@ -675,6 +725,8 @@ if __name__ == "__main__":
     if os.path.exists(output_shortest):
         os.remove(output_shortest)
 
+    alns = []
+    startcodon_dists = []
     if args.hmms != None:
         if (args.proteins == None or args.domtbl == None):
             logging.warning( u'Information about HMMs positions is not provided')
@@ -686,26 +738,24 @@ if __name__ == "__main__":
                      if isfile(join(args.hmms, f)) and \
                         isfile(join(args.hmms, f[:-9] + "edges.fa")) and \
                         f.endswith("domtblout") ]
-        alns = []
         for f in filenames:
             f_path = join(args.hmms, f)
             alns.extend(load_mappings.load_pathracer_mapping(f_path, g.edges, float(args.minlen), float(args.evalue), K))
-        startcodon_dists = []
         for aln in alns:
             startcodon_dist = []
             if aln["name"] in hmm_hits:
                 startcodon_dist = [x["start"] for x in hmm_hits[aln["name"]] ]
             startcodon_dists.append(startcodon_dist)
         logging.info( u'HMMs: ' + str(len(alns)))
-        generate_orfs(output, output_shortest, alns, g, startcodon_dists, args.longestorf, args.uniqueedge, int(args.threads), "pathracer")
 
     if args.sequences != None:
-        alns = load_mappings.load_spaligner_mapping(args.sequences)
-        startcodon_dists = []
-        for a in alns:
+        seq_alns = load_mappings.load_spaligner_mapping(args.sequences)
+        alns.extend(seq_alns)
+        for a in seq_alns:
             startcodon_dists.append([a["d"]])
         logging.info( u'Seqs: ' + str(len(alns)))
-        generate_orfs(output, output_shortest, alns, g, startcodon_dists, args.longestorf, args.uniqueedge, int(args.threads), "spaligner")
+
+    generate_orfs(output, output_shortest, alns, g, startcodon_dists, args.longestorf, args.uniqueedge, int(args.threads))
 
 
 
