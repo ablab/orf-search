@@ -162,16 +162,15 @@ def check_for_stopcodon(graph, edges, p, edge, find_set, stop_set, max_length):
     found_StopCodon = False
     while len(queue) > 0:
         cur_state = queue.popleft()
-        #print([cur_state["edge"], len(edges[cur_state["edge"]]), cur_state["pos"], cur_state])
         cur_str = cur_state["prev"] + edges[cur_state["edge"]][cur_state["pos"]]
-        if len(cur_str) == 3 and cur_str in find_set:
+        if len(cur_str) == 3 and cur_str in stop_set:
             found_StopCodon = True
 
         if len(cur_str) == 3:
             prev = ""
         else:
             prev = cur_str
-        if (len(cur_str) != 3 or cur_str not in stop_set) and cur_state["dist"] < max_length:
+        if (len(cur_str) != 3 or cur_str not in find_set) and cur_state["dist"] < max_length:
             if cur_state["pos"] + 1 > len(edges[cur_state["edge"]]) - 1:
                 for a_edge in graph[cur_state["edge"]]:
                     if a_edge + "_" + str(K) + "_" + prev not in color: 
@@ -442,7 +441,7 @@ def find_subgraph_tagged(graph, edges, s_edge, s_pos, f_edge, f_pos):
     return edges_intersection
 
 def generate_all_paths(graph, edges, s_edge, f_edge, s_pos, e_pos, max_path_num, max_length = 1500, min_length = 0):
-    #edges_intersection = find_subgraph(graph, edges, s_edge, f_edge)
+    edges_intersection = find_subgraph(graph, edges, s_edge, f_edge)
     edges_intersection_tagged = find_subgraph_tagged(graph, edges, s_edge, s_pos, f_edge, e_pos)
     paths = []
     cur_edges = {}
@@ -454,7 +453,7 @@ def generate_all_paths(graph, edges, s_edge, f_edge, s_pos, e_pos, max_path_num,
     else:
         start = ((len(edges[s_edge]) - K) - s_pos)
     search_all_path_tagged(s_edge, s_pos, e_pos, start, f_edge, [s_edge], paths, all_paths, cur_edges, max_path_num, max_length, min_length, edges_intersection_tagged, edges, graph)
-    #search_all_path(s_edge, s_pos, e_pos, 0, f_edge, [s_edge], paths, all_paths, cur_edges, max_path_num, max_length, min_length, edges_intersection, edges, graph)
+    # search_all_path(s_edge, s_pos, e_pos, 0, f_edge, [s_edge], paths, all_paths, cur_edges, max_path_num, max_length, min_length, edges_intersection, edges, graph)
     # print([max_length, min_length, "paths", len(paths), len(all_paths), max_path_num])
     return paths, len(all_paths) 
 
@@ -708,11 +707,11 @@ if __name__ == "__main__":
     parser.add_argument('-e', '--evalue',  help='minimum e-value for HMM alignment', default=0.000000001)
     parser.add_argument('-l', '--minlen',  help='minimum length', default=0.9)
     parser.add_argument('-f', '--longestorf', help='generate ORFs that have stop codon before start codon', action='store_true')
-    parser.add_argument('-u', '--uniqueedge',  help='length of unique edges in nucs', default=300, type=int)
+    parser.add_argument('-u', '--uniqueedge',  help='length of unique edges in nucs', default=500, type=int)
     parser.add_argument('-o', '--out',  help='output prefix', required=True)
     parser.add_argument('-t', '--threads', help='threads number', required=False)
     args = parser.parse_args()
-    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG)#, filename = args.out + u'.log')
+    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'.log')
     if args.hmms == None and args.sequences == None:
         logging.error( u'Please provide sequences or hmm alignments')
         exit(-1)
