@@ -27,6 +27,8 @@ def load_seqedges(edges_file):
     return seq_nuc, seq
 
 def convert_edge(p, edges):
+    if p.endswith("'"):
+        p = p[:-1]
     p_id = p + "+"
     if p_id not in edges:
         p_id = str(int(p) - 1) + "-"
@@ -96,13 +98,20 @@ def load_pathracer_mapping(domtblfile, edges, len_th, evalue_th, K):
     hits_lst, _, _ = hmmer_results_parser(domtblfile, edges, len_th, evalue_th, K)
     pathracer_lst = []
     for hit in hits_lst:
-        path, shift = hit["seq_name"].split("/")[0].split("_"), int(hit["seq_name"].split("/")[1])
+        path = []
+        seq_splitted = hit["seq_name"].split("/")[0].split("_")
+        for i in range(len(seq_splitted)):
+            if seq_splitted[i] == "component":
+                path.append( "_".join([seq_splitted[i-1], seq_splitted[i], seq_splitted[i+1]]) )
+        if len(path) == 0:
+            path = hit["seq_name"].split("/")[0].split("_")
+        shift = int(hit["seq_name"].split("/")[1])
         for i in range(len(path)):
             path[i] = convert_edge(path[i], edges)
         seq_s, seq_e, path = convert_pos(hit["start"], hit["end"], shift, path, edges, K) 
         if len(path) > 0:
             pathracer_lst.append({"seq_name": hit["seq_name"], "name": hit["hmm_name"], "start": seq_s, \
-                                    "end": seq_e, "path": path})
+                                    "end": seq_e, "path": path, "prefix": "pathracer"})
     return pathracer_lst
 
 def load_spaligner_mapping(mappings_fasta):
@@ -113,10 +122,10 @@ def load_spaligner_mapping(mappings_fasta):
         ind = 0
         while not lst[ind].startswith("Edges="):
             ind += 1
-        path, start_g, end_g, start_s = lst[ind][len("Edges="):].split("_")[:-1], \
-                                        int(lst[ind+1][len("start_g="):]), int(lst[ind+2][len("end_g="):]) - 1, int(lst[ind+3][len("start_s="):])
+        path = lst[ind][len("Edges="):].split("_")
+        start_g, end_g, start_s = int(lst[ind+1][len("start_g="):]), int(lst[ind+2][len("end_g="):]) - 1, int(lst[ind+3][len("start_s="):])
         for i in range(len(path)):
             if not path[i].endswith("-") and not path[i].endswith("+"):
                 path[i] = path[i] + "+" 
-        res.append({"name": "_".join(lst[:ind]), "start": start_g, "end": end_g, "path": path, "d":start_s})
+        res.append({"name": s.name.replace(" ", "_"), "start": start_g, "end": end_g, "path": path, "d":start_s, "prefix": "spaligner"})
     return res
