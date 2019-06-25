@@ -25,7 +25,7 @@ execution_path = os.path.dirname(os.path.abspath(__file__))
 def align_hmms(hmms_file, graph_file, k, evalue, threads, out_dir):
     com = execution_path + "/aligners/pathracer " + hmms_file + " " + graph_file + " " + str(k) \
         + " --output " + out_dir + " --rescore --annotate-graph --threads " + str(threads) \
-        + " -E " + evalue + " --domE " + evalue + " --max_size 500000 > " + out_dir + ".log"
+        + " -E " + evalue + " --domE " + evalue + " --max-size 500000 > " + out_dir + ".log"
     logging.info( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
     #count_time_and_memory("Pathracer")
@@ -33,12 +33,12 @@ def align_hmms(hmms_file, graph_file, k, evalue, threads, out_dir):
 
 def align_sequences(graph_file, k, protein_file, threads, out_prefix):
     com = execution_path + "/aligners/spaligner " + execution_path + "/aligners/spaligner_cfg.yaml -g " + graph_file + \
-                    " -K " + str(k) + " -s " + protein_file + " -t " + str(threads) + \
+                    " -k " + str(k) + " -s " + protein_file + " -t " + str(threads) + \
                      " -d protein -o " + out_prefix + " > " + out_prefix + ".log"
     logging.info( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
     #count_time_and_memory("SPAligner")
-    return out_prefix + ".fasta", return_code
+    return out_prefix + "/alignment.fasta", return_code
 
 def find_true_hmm_alignments(hmmer_path, proteins_file, hmms_file, evalue, threads, out_file):
     com = hmmer_path + "hmmsearch --domtblout " + out_file + \
@@ -79,7 +79,8 @@ def filter_orfs(orfs_sequences, proteins_file, contigs_file, threads, nucmer_pat
     return out_file + ".fasta", return_code
 
 def load_yaml():
-    with open("./config.yaml", 'r') as stream:
+    p = os.path.abspath(__file__)
+    with open(p[:-len("run_ORFs_search.py")] + "/config.yaml", 'r') as stream:
         try:
             res = yaml.load(stream)
         except yaml.YAMLError as exc:
@@ -127,7 +128,7 @@ if __name__ == "__main__":
         find_true_hmm_alignments(hmmer_path, args.sequences, args.hmms, str(args.evalue), t, join(args.out, hmms_name))
 
     if args.sequences != None and args.runspaligner:
-        seq_name = ".".join(args.sequences.split("/")[-1].split(".")[0:-1])
+        seq_name = args.sequences.split("/")[-1].split(".")[0]
         seq_return_str, seq_return_code = align_sequences(args.graph, args.kmer, args.sequences, t, join(args.out, seq_name))
         if seq_return_code != 0:
             logging.warning( u'Sequence alignment failed')
