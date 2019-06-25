@@ -1,18 +1,16 @@
-output_format: fasta
+output_format: tsv
+
+hits_generation:
+  internal_length_cutoff: 200
+  path_limit_stretching: 1.3
+  path_limit_pressing: 0.6
+  max_path_in_chaining: 15000
+  max_vertex_in_chaining: 5000
+
+################## nucleotide sequences alignment parameters
+
 run_dijkstra: true
 restore_ends: true
-
-pb:
-  bwa_length_cutoff: 0
-  internal_length_cutoff: 200
-  compression_cutoff: 0.6
-  path_limit_stretching: 1.3
-  path_limit_pressing: 0.7
-  max_path_in_dijkstra: 15000
-  max_vertex_in_dijkstra: 5000
-  long_seq_limit: 400
-  pacbio_min_gap_quantity: 2
-  contigs_min_gap_quantity: 1
 
 gap_closing:
   queue_limit: 1000000
@@ -37,3 +35,18 @@ ends_recovering:
   ed_lower_bound: 500
   ed_upper_bound: 2000
   max_restorable_length: 5000
+
+################## amino acid sequences alignment parameters
+
+aminoacid_mode:
+  queue_limit: 1000000
+  iteration_limit: 1000000
+  updates_limit: 1000000
+  find_shortest_path: true
+  restore_mapping: false
+  max_ed_proportion: 3
+  max_restorable_length: 5000
+  stop_codon: true
+  min_alignment_len: 0.8 # min percent of restorable length
+  penalty_matrix: blosum62 # substitution matrix name
+  indel_score: 5
