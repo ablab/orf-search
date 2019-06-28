@@ -1,6 +1,7 @@
 # ORFs search in assembly graphs
 
-Pipeline for generating potential ORFs (Open Reading Frames) from assembly graphs.
+Pipeline for generating potential gene sequences, ORFs (Open Reading Frames), from assembly graphs.
+Our pipeline incorporates the power of two graph alignment tools (PathRacer and SPAligner) and uses their output as initial anchors to search for full gene sequences in assembly graphs.
 
 ## Installation
 
@@ -9,7 +10,7 @@ Used libraries and tools:
 - python3:
     - [biopython](https://biopython.org/wiki/Download)
     - [pyyaml](https://pyyaml.org/wiki/PyYAMLDocumentation)
-- [Edlib](https://github.com/Martinsos/edlib)
+- [Edlib](https://pypi.org/project/edlib/)
 - [HMMer](http://hmmer.org) 
 - [Mummer4](https://github.com/mummer4/mummer/releases)
 - [PathRacer](http://cab.spbu.ru/software/pathracer/)
@@ -31,7 +32,7 @@ Search for potential Cry and Vip proteins in assembly graph of *Brevibacillus la
                         -o test                                  # output folder
 
 
-Try `run_ORFs_search.py -h` for more options.
+Try `run_ORFs_search.py -h` for more options. Test data for this example can be downloaded from [figshare](https://figshare.com/s/28de3bac33d6f0156998).
 
 ## Output
 
