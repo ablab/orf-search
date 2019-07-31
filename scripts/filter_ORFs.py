@@ -114,7 +114,7 @@ def leave_unknown(orfs, known_proteins):
     for orf in orfs:
         unknown = True
         for p in known_proteins:
-            if p.seq == orf.seq:
+            if p.seq == orf.seq or (orf.seq[-1] == "*" and p.seq == orf.seq[:-1]):
                 unknown = False
                 break
         if unknown:
@@ -178,7 +178,6 @@ def cluster_orfs_new(orfs):
             res.append(make_record(orf.seq, str(i) + "|" + orf.id.split(";")[0], str(i) + "|" + orf.name.split(";")[0]))
     return res
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Filter ORFs')
     parser.add_argument('-s', '--orfs', help='fasta-file with ORFs', required=True)
@@ -193,18 +192,29 @@ if __name__ == "__main__":
         t = "1"
 
     orfs = load_fasta(args.orfs)
+    orfs_new = translate_orfs(orfs)
+    orfs_new = leave_unique(orfs_new)
+    logging.info( u'Total orfs number: ' + str(len(orfs_new)))
+    save_fasta(args.out + "_total", orfs_new)
     if args.contigs != None:
         contigs = load_fasta(args.contigs)
         logging.info( u'ORFs num: ' + str(len(orfs)) + u' Contigs num: ' + str(len(contigs)))
         orfs = align_with_nucmer(orfs, args.orfs, args.contigs, args.out, t)
-    orfs = translate_orfs(orfs)
-    orfs = leave_unique(orfs)
+        orfs = translate_orfs(orfs)
+        orfs = leave_unique(orfs)
+        logging.info( u'Graph only orfs number: ' + str(len(orfs)))
+        save_fasta(args.out + "_graphonly", orfs)
+    else:
+        orfs = translate_orfs(orfs)
+        orfs = leave_unique(orfs)
+
     if args.proteins != None:
         known_proteins = load_fasta(args.proteins)
         orfs = leave_unknown(orfs, known_proteins)
+
     logging.info( u'Resulting ORFs: ' + str(len(orfs)))
-    save_fasta(args.out, orfs)
+    save_fasta(args.out + "_novel", orfs)
     clustered_orfs = cluster_orfs_new(orfs)
     logging.info( u'Resulting clusters: ' + str(len(clustered_orfs)))
-    save_fasta(args.out + "_clustered", clustered_orfs)
+    save_fasta(args.out + "_novel_clustered", clustered_orfs)
 
