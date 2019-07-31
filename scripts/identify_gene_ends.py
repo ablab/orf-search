@@ -82,6 +82,7 @@ def load_gfa_edges(gfa_filename):
                 coverage[node_id + "-"] = float(kc[len("KC:i:"):])/len(seq)
             elif ln.startswith("L"):
                 _, node_id1, pos1, node_id2, pos2, match  = ln.strip().split("\t")
+                K = int(match[:-1])
                 graph[node_id1+pos1][node_id2+pos2] = 1
                 graph[node_id2+rev[pos2]][node_id1+rev[pos1]] = 1
             elif ln.startswith("P"):
@@ -612,8 +613,9 @@ def compare_with_contig_paths2(name, paths, g, uniqueedge_len):
             if not has_good_overlap:
                 for e in g.paths[c]:
                     if e in p["Edges"] and len(g.edges[e]) > uniqueedge_len:
-                        supported = False
-                        break
+                        if len(g.graph[revert(g.graph[e].keys()[0])]) > 1 and len(g.graph[revert(e)]) > 1:
+                            supported = False
+                            break
             if not supported:
                 break
         if supported:
