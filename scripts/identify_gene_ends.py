@@ -443,7 +443,7 @@ def find_subgraph_tagged(graph, edges, s_edge, s_pos, f_edge, f_pos):
 
 def generate_all_paths(graph, edges, s_edge, f_edge, s_pos, e_pos, max_path_num, max_length = 1500, min_length = 0):
     edges_intersection = find_subgraph(graph, edges, s_edge, f_edge)
-    edges_intersection_tagged = find_subgraph_tagged(graph, edges, s_edge, s_pos, f_edge, e_pos)
+    # edges_intersection_tagged = find_subgraph_tagged(graph, edges, s_edge, s_pos, f_edge, e_pos)
     paths = []
     cur_edges = {}
     for e in edges:
@@ -453,8 +453,8 @@ def generate_all_paths(graph, edges, s_edge, f_edge, s_pos, e_pos, max_path_num,
         start = 3 - (s_pos - (len(edges[s_edge]) - K)) % 3
     else:
         start = ((len(edges[s_edge]) - K) - s_pos)
-    search_all_path_tagged(s_edge, s_pos, e_pos, start, f_edge, [s_edge], paths, all_paths, cur_edges, max_path_num, max_length, min_length, edges_intersection_tagged, edges, graph)
-    # search_all_path(s_edge, s_pos, e_pos, 0, f_edge, [s_edge], paths, all_paths, cur_edges, max_path_num, max_length, min_length, edges_intersection, edges, graph)
+    # search_all_path_tagged(s_edge, s_pos, e_pos, start, f_edge, [s_edge], paths, all_paths, cur_edges, max_path_num, max_length, min_length, edges_intersection_tagged, edges, graph)
+    search_all_path(s_edge, s_pos, e_pos, 0, f_edge, [s_edge], paths, all_paths, cur_edges, max_path_num, max_length, min_length, edges_intersection, edges, graph)
     # print([max_length, min_length, "paths", len(paths), len(all_paths), max_path_num])
     return paths, len(all_paths) 
 
@@ -613,7 +613,7 @@ def compare_with_contig_paths2(name, paths, g, uniqueedge_len):
             if not has_good_overlap:
                 for e in g.paths[c]:
                     if e in p["Edges"] and len(g.edges[e]) > uniqueedge_len:
-                        if len(g.graph[revert(g.graph[e].keys()[0])]) > 1 and len(g.graph[revert(e)]) > 1:
+                        if len(g.graph[e].keys()) > 0 and len(g.graph[revert(g.graph[e].keys()[0])]) > 1 and len(g.graph[revert(e)]) > 1:
                             supported = False
                             break
             if not supported:
