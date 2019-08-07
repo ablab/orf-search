@@ -48,5 +48,5 @@ aminoacid_mode:
   max_restorable_length: 5000
   stop_codon: true
   min_alignment_len: 0.8 # min percent of restorable length
-  penalty_matrix: blosum62 # substitution matrix name
+  penalty_matrix: blosum90 # substitution matrix name
   indel_score: 5
