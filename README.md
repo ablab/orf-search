@@ -7,17 +7,19 @@ Our pipeline incorporates the power of two graph alignment tools (PathRacer and 
 
 The main pipeline is written in Python3 and uses several libraries described below.
 Used libraries and tools: 
-- python3:
+- Python3:
     - [biopython](https://biopython.org/wiki/Download)
     - [pyyaml](https://pyyaml.org/wiki/PyYAMLDocumentation)
-- [Edlib](https://pypi.org/project/edlib/)
-- [HMMer](http://hmmer.org) 
+    - [Edlib](https://pypi.org/project/edlib/)
+    - [HMMer](http://hmmer.org)
+    - [joblib](https://joblib.readthedocs.io/en/latest/installing.html)
 - [Mummer4](https://github.com/mummer4/mummer/releases)
 - [PathRacer](http://cab.spbu.ru/software/pathracer/)
 - [SPAligner](http://cab.spbu.ru/software/spaligner/)
 
 Paths to local versions of HMMer and Mummer4 can be set in config.yaml (or leave it empty if they were installed globaly).
 Execution files of PathRacer and SPAligner must be in `aligners/` folder.
+
 
 ## Running
 

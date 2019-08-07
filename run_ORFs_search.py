@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import sys
 import os
 from os.path import isfile, isdir, join
@@ -58,7 +58,7 @@ def extract_ORFs_from_graph(hmms_alignments, proteins_alignments, graph_file, k,
 def filter_orfs(orfs_sequences, graph, proteins_file, contigs_file, threads, nucmer_path, print_all, out_file, out_dir):
 
     com = execution_path + "/scripts/filter_ORFs.py -s " + orfs_sequences + \
-                          " -g " + graph + " -t " + str(threads) + " -o " + out_file
+                          " -n " + nucmer_path + " -g " + graph + " -t " + str(threads) + " -o " + out_file
     if not print_all:
         com += " -c " + contigs_file + " -p " + proteins_file
     logging.info( u'Running: ' + com)

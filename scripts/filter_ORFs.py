@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from Bio.Seq import Seq
 from Bio.Alphabet import generic_dna
 from Bio import SeqIO
@@ -75,9 +75,9 @@ def save_fasta(filename, orfs):
     with open(filename + ".fasta", "w") as output_handle:
         SeqIO.write(orfs, output_handle, "fasta")
 
-def align_with_nucmer(orfs, orfs_filename, contigs_filename, outfile, threads):
+def align_with_nucmer(orfs, orfs_filename, contigs_filename, outfile, nucmer_path, threads):
     res = []
-    com = "nucmer -t " + threads + " --sam-short " + outfile + ".sam " + contigs_filename + " " + orfs_filename
+    com = nucmer_path + "nucmer -t " + threads + " --sam-short " + outfile + ".sam " + contigs_filename + " " + orfs_filename
     logging.info( u'Running nucmer: ' + com)
     subprocess.call([com], shell=True)
     aligned_set = set()
@@ -258,6 +258,7 @@ if __name__ == "__main__":
     parser.add_argument('-g', '--graph', help='gfa-file with assembly graph', required=True)
     parser.add_argument('-c', '--contigs', help='fasta-file with contigs', required=False)
     parser.add_argument('-p', '--proteins',  help='list of known genes', required=False)
+    parser.add_argument('-n', '--nucmer', help='path to nucmer', required=True)
     parser.add_argument('-o', '--out',  help='output prefix', required=True)
     parser.add_argument('-t', '--threads', help='threads number', required=False)
     args = parser.parse_args()
@@ -273,7 +274,7 @@ if __name__ == "__main__":
     save_fasta(args.out + "_total", orfs_new)
     if args.contigs != None:
         contigs = load_fasta(args.contigs)
-        orfs = align_with_nucmer(orfs, args.orfs, args.contigs, args.out, t)
+        orfs = align_with_nucmer(orfs, args.orfs, args.contigs, args.out, args.nucmer, t)
         orfs = translate_orfs(orfs)
         orfs = leave_unique(orfs)
         logging.info( u'Graph only orfs number: ' + str(len(orfs)))
