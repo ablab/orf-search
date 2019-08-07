@@ -40,10 +40,12 @@ Results can be found in user defined folder `-o test`:
     
     test/pfamA.of.interest_pfam/            PathRacer run results
     test/toxins/                            SPAligner run results
-    test/orfs_raw.fasta                     Full list of potential ORFs that were found in assembly graph
-    test/orfs_total.fasta                   List of potential ORFs after initial filtering
-    test/orfs_graphonly.fasta               List of potential ORFs that can be found only in graph (not in contigs)
-    test/orfs_novel.fasta                   List of novel ORFs (not presented in [Bacillus thuringiensis Toxin Nomenclature](http://www.btnomenclature.info/)) 
+    test/orfs_raw.fasta                     Full list of ORFs that were found in assembly graph
+    test/orfs_total.fasta                   List of ORFs after initial filtering
+    test/orfs_graphonly.fasta               List of ORFs that can be found only in graph (not in contigs)
+    test/orfs_novel.fasta                   List of novel ORFs (not presented in Bacillus thuringiensis Toxin Nomenclature)
+    test/orfs_final_clustered.fasta         List of ORFs clustered with 90% identity
+    test/orfs_final_most_reliable.fasta     List of representatives for each cluster (usually contains 2-3 sequences per cluster)
 
 
 ## Main algorithm
