@@ -13,22 +13,12 @@ import yaml
 
 execution_path = os.path.dirname(os.path.abspath(__file__))
 
-
-# def count_time_and_memory(script_name):
-#     memory = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
-#     cputime = resource.getrusage(resource.RUSAGE_CHILDREN).ru_utime
-#     h = int(cputime // 3600)
-#     m = (cputime - h * 3600) / 60
-#     logging.info( u'Script: ' + script_name + u' Total CPU time: {}:{:.2f}'.format(h, m) \
-#                       + u' Total memory: {} kb'.format(memory))
-
 def align_hmms(hmms_file, graph_file, k, evalue, threads, out_dir):
     com = execution_path + "/aligners/pathracer " + hmms_file + " " + graph_file + " " + str(k) \
         + " --output " + out_dir + " --rescore --annotate-graph --threads " + str(threads) \
         + " -E " + evalue + " --domE " + evalue + " --max-size 500000 > " + out_dir + ".log"
     logging.info( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
-    #count_time_and_memory("Pathracer")
     return out_dir, return_code
 
 def align_sequences(graph_file, k, protein_file, threads, out_prefix):
@@ -37,7 +27,6 @@ def align_sequences(graph_file, k, protein_file, threads, out_prefix):
                      " -d protein -o " + out_prefix + " > " + out_prefix + ".log"
     logging.info( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
-    #count_time_and_memory("SPAligner")
     return out_prefix + "/alignment.fasta", return_code
 
 def find_true_hmm_alignments(hmmer_path, proteins_file, hmms_file, evalue, threads, out_file):
@@ -46,7 +35,6 @@ def find_true_hmm_alignments(hmmer_path, proteins_file, hmms_file, evalue, threa
                     + " > " + out_file + "_true.log"
     logging.info( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
-    #count_time_and_memory("Align HMMs to genes")
     return out_file + ".dtbl", return_code
 
 def extract_ORFs_from_graph(hmms_alignments, proteins_alignments, graph_file, k, proteins_file, \
@@ -65,17 +53,16 @@ def extract_ORFs_from_graph(hmms_alignments, proteins_alignments, graph_file, k,
     com += " -g " + graph_file + " -k " + str(k) + " -t " + str(threads) +" -o " + out_file
     logging.info( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
-    #count_time_and_memory("Generate ORFs")
     return out_file + ".fasta", return_code
 
-def filter_orfs(orfs_sequences, proteins_file, contigs_file, threads, nucmer_path, out_file, out_dir):
+def filter_orfs(orfs_sequences, graph, proteins_file, contigs_file, threads, nucmer_path, print_all, out_file, out_dir):
+
     com = execution_path + "/scripts/filter_ORFs.py -s " + orfs_sequences + \
-              " -c " + contigs_file +\
-              " -p " + proteins_file  + " -t " + str(threads) + " -o "\
-               + out_file
+                          " -g " + graph + " -t " + str(threads) + " -o " + out_file
+    if not print_all:
+        com += " -c " + contigs_file + " -p " + proteins_file
     logging.info( u'Running: ' + com)
     subprocess.call([com], shell=True)
-    #count_time_and_memory("Filter ORFs")
     return out_file + ".fasta", return_code
 
 def load_yaml():
@@ -101,6 +88,7 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--threads', help='number of threads', required=False)
     parser.add_argument('-e', '--evalue',  help='minimum e-value for HMM alignment', default=0.000000001)
     parser.add_argument('-l', '--minlen',  help='minimum length', default=0.9)
+    parser.add_argument('-a', '--all', help='do not perform filtering based on contigs or known IPGs', required=False, action='store_true')
     parser.add_argument('-o', '--out', help='output directory', required=True)
     args = parser.parse_args()
 
@@ -148,12 +136,12 @@ if __name__ == "__main__":
         logging.error( u'Orfs generation failed')
         exit(-1)
 
-    final_orfs_str, return_code = filter_orfs(orfs_fasta, args.sequences, args.contigs, t, nucmer_path, join(args.out, "orfs_final"), args.out)
+    final_orfs_str, return_code = filter_orfs(orfs_fasta, args.graph, args.sequences, args.contigs, t, nucmer_path, args.all, join(args.out, "orfs_final"), args.out)
     if return_code != 0:
         logging.error( u'Filtering failed')
         exit(-1)
 
-    logging.info( u'ORFs search finished. Please find final results: ' + final_orfs_str)
+    logging.info( u'ORFs search finished. Please find results here: ' + args.out + "/")
 
 
 
