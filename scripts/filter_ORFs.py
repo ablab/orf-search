@@ -4,6 +4,8 @@ from Bio.Alphabet import generic_dna
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 
+from joblib import Parallel, delayed
+
 import subprocess
 import logging
 
@@ -17,12 +19,18 @@ from os.path import isfile, isdir, join
 import re
 import edlib
 
+MIN_RELIABLE_LENGTH = 100
+RELIABLE_LENGTH = 300
+IDENTITY = 90
+ED_THRESHOLD = 0.2
+
 def edist(lst):
     if len(str(lst[0])) == 0:
-        return len(str(lst[1]))
+        return -1, ""
     if len(str(lst[1])) == 0:
-        return len(str(lst[0]))
-    result = edlib.align(str(lst[0]), str(lst[1]), mode="NW", task="path")
+        return -1, ""
+    ed_er = int(ED_THRESHOLD*max(len(str(lst[0])), len(str(lst[1]))))
+    result = edlib.align(str(lst[0]), str(lst[1]), mode="NW", task="path", k = ed_er)
     return result["editDistance"], result["cigar"]
 
 def aai(ar):
@@ -32,12 +40,32 @@ def aai(ar):
     if p2.endswith("*"):
         p2 = p2[:-1]
     ed, cigar = edist([str(p1), str(p2)])
+    if ed == -1:
+        return 0
     matches = re.findall(r'\d+=', cigar)
     aai = 0.0
     for m in matches:
         aai += int(m[:-1])
     aai /= max(len(p1), len(p2))
     return aai*100
+
+def make_rc(s):
+    seq = Seq(s, generic_dna)
+    return str(seq.reverse_complement())
+
+def load_gfa_edges(gfa_filename):
+    res = {}
+    coverage = {}
+    with open(gfa_filename, "r") as fin:
+        for ln in fin.readlines():
+            if ln.startswith("S"):
+                lst = ln.strip().split("\t")[1:]
+                node_id, seq, kc = lst[0], lst[1], lst[-1]
+                res[node_id + "+"] = seq
+                res[node_id + "-"] = make_rc(seq)
+                coverage[node_id + "+"] = float(kc[len("KC:i:"):])/len(seq)
+                coverage[node_id + "-"] = float(kc[len("KC:i:"):])/len(seq)
+    return res, coverage
     
 def load_fasta(filename):
     record_lst = list(SeqIO.parse(filename, "fasta"))
@@ -121,72 +149,119 @@ def leave_unknown(orfs, known_proteins):
             res.append(orf)
     return res
 
-def cluster_orfs_new(orfs):
+def get_metainfo(s):
+    keys = {"Edges":[], "apriori_startd_prob": 0, "coverage": 0}
+    for c in s.split("|"):
+        for k in keys:
+            if c.startswith(k):
+                if k == "Edges":
+                    keys[k] = c[len(k)+1:].split("_")
+                if k in {"apriori_startd_prob", "coverage"}:
+                    if c[len(k)+1:] != "None":
+                        keys[k] = float(c[len(k)+1:])
+
+    return keys
+
+def find_set(ind, parent):
+    if ind == parent[ind]:
+        return ind
+    parent[ind] = find_set(parent[ind], parent)
+    return parent[ind]
+
+def union_sets(a, b, parent, rank):
+    a = find_set(a, parent)
+    b = find_set(b, parent)
+    if a != b:
+        if rank[a] < rank[b]:
+            a, b = b, a
+        parent[b] = a
+        if rank[a] == rank[b]:
+            rank[a] += 1
+
+def in_one_cluster(args):
+    s1, s2, comparison_res, ind = args[0], args[1], args[2], args[3]
+    in_one = s1 in s2 if len(s1) < len(s2) else s2 in s1
+    comparison_res[ind] = in_one or aai([s2, s1]) > IDENTITY
+
+def divide_into_clusters(orfs, t):
     clusters = []
+    parent = [i for i in range(len(orfs))]
+    rank = [0 for _ in range(len(orfs))]
     for i in range(len(orfs)):
-        new_clusters = []
-        first_cluster = -1
-        for cl in clusters:
-            in_cluster = False
-            for o in cl:
-                if aai([o.seq, orfs[i].seq]) > 90:
-                    #print o.id, orfs[i].id, aai([o.seq, orfs[i].seq])
-                    in_cluster = True
-                    break
-            if in_cluster:
-                if first_cluster == -1:
-                    new_clusters.append(cl)
-                    new_clusters[-1].add(orfs[i])
-                    first_cluster = len(new_clusters) - 1
-                else:
-                    new_clusters[first_cluster] |= cl
-            else:
-                new_clusters.append(cl)
-        if first_cluster == -1:
-            new_clusters.append(set({orfs[i]}))
-        clusters = []
-        for cl in new_clusters:
-            clusters.append(cl)
-    print len(clusters)
-    new_clusters = []
-    for i in range(len(clusters)):
-        is_covered = False
-        for j in range(len(clusters)):
-            if i != j and not is_covered:
-                for it_i in clusters[i]:
-                    for it_j in clusters[j]:
-                        if it_i.seq in it_j.seq:
-                            is_covered = True
-                            break
-                    if is_covered:
-                        break
-            else:
-                cur_cluster = set()
-                for it_i in clusters[i]:
-                    is_covered2 = False
-                    for it_j in clusters[j]:
-                        if len(it_i.seq) < len(it_j.seq) and it_i.seq in it_j.seq:
-                            is_covered2 = True
-                            break
-                    if not is_covered2:
-                        cur_cluster.add(it_i)
-        if not is_covered:
-            new_clusters.append(cur_cluster)
+        comparison_res = [False for _ in range(i + 1, len(orfs))]
+        Parallel(n_jobs=t, require='sharedmem')(delayed(in_one_cluster)([orfs[i].seq, orfs[j].seq, comparison_res, j - i - 1]) for j in range(i + 1, len(orfs)))
+        for j in range(i + 1, len(orfs)):
+            if comparison_res[j - i - 1]:
+                union_sets(i, j, parent, rank)
+
+    clusters_id = {}
+    for i in range(len(orfs)):
+        ind = find_set(i, parent)
+        if ind not in clusters_id:
+            clusters_id[ind] = {}
+        clusters_id[ind][orfs[i].name] = orfs[i]
+
+    for cl in clusters_id:
+            clusters.append(clusters_id[cl])
+
+    return clusters
+
+def pick_representatives(clusters, orfs, graph):
+    edges, coverage = graph[0], graph[1]
     res = []
-    for i in range(len(new_clusters)):
-        for orf in new_clusters[i]:
-            res.append(make_record(orf.seq, str(i) + "|" + orf.id.split(";")[0], str(i) + "|" + orf.name.split(";")[0]))
+    cl_ind = 0
+    for cl in clusters:
+        cl_edges = set()
+        cl_meta = []
+        for c in cl:
+            o = cl[c]
+            keys = get_metainfo(o.name)
+            path = keys["Edges"]
+            cl_meta.append({"name": o.name, "len": len(o.seq), \
+                            "start_prob": keys["apriori_startd_prob"] if keys["apriori_startd_prob"] != "None" else 0,\
+                            "coverage": keys["coverage"],
+                            "edges": set(path)})
+            for e in path:
+                if len(edges[e]) > MIN_RELIABLE_LENGTH:
+                    cl_edges.add(e)
+        sorted_edges = sorted([{"name": e, "len": len(edges[e])} for e in cl_edges], key=lambda x: -x["len"])
+        cl_edges = set([sorted_edges[i]["name"] for i in range(len(sorted_edges)) if i < 5 or sorted_edges[i]["len"] > RELIABLE_LENGTH])
+        sorted_cl = sorted(cl_meta, key=lambda x: (-x["start_prob"], -x["coverage"], -x["len"]))
+        num = 0
+        for orf in sorted_cl:
+            if len(cl_edges & orf["edges"]) > 0 or len(cl_edges) == 0:
+                res.append(make_record(cl[orf["name"]].seq, str(cl_ind) + "|" + cl[orf["name"]].id.split(";")[0], str(cl_ind) + "|" + orf["name"].split(";")[0]))
+                num += 1
+            cl_edges = cl_edges - orf["edges"]
+            if len(cl_edges) == 0:
+                break
+        logging.info( u'Number of representatives ' + str(num) + u' Total number ' + str(len(sorted_cl)))
+        cl_ind += 1
     return res
+
+def cluster_orfs(orfs, graph, t):
+    clusters = divide_into_clusters(orfs, t)
+    logging.info( u'Number of clusters: ' + str(len(clusters)))
+    reprentatives_cl = pick_representatives(clusters, orfs, graph)
+    res_cl = []
+    for i in range(len(clusters)):
+        for o in clusters[i]:
+            orf = clusters[i][o]
+            res_cl.append(make_record(orf.seq, str(i) + "|" + orf.id.split(";")[0], str(i) + "|" + orf.name.split(";")[0]))
+    return reprentatives_cl, res_cl
+
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Filter ORFs')
     parser.add_argument('-s', '--orfs', help='fasta-file with ORFs', required=True)
+    parser.add_argument('-g', '--graph', help='gfa-file with assembly graph', required=True)
     parser.add_argument('-c', '--contigs', help='fasta-file with contigs', required=False)
     parser.add_argument('-p', '--proteins',  help='list of known genes', required=False)
     parser.add_argument('-o', '--out',  help='output prefix', required=True)
     parser.add_argument('-t', '--threads', help='threads number', required=False)
     args = parser.parse_args()
-    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'.log')
+    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG) #, filename = args.out + u'.log')
     t = args.threads
     if t == None:
         t = "1"
@@ -198,7 +273,6 @@ if __name__ == "__main__":
     save_fasta(args.out + "_total", orfs_new)
     if args.contigs != None:
         contigs = load_fasta(args.contigs)
-        logging.info( u'ORFs num: ' + str(len(orfs)) + u' Contigs num: ' + str(len(contigs)))
         orfs = align_with_nucmer(orfs, args.orfs, args.contigs, args.out, t)
         orfs = translate_orfs(orfs)
         orfs = leave_unique(orfs)
@@ -211,10 +285,11 @@ if __name__ == "__main__":
     if args.proteins != None:
         known_proteins = load_fasta(args.proteins)
         orfs = leave_unknown(orfs, known_proteins)
+        logging.info( u'Novel ORFs: ' + str(len(orfs)))
+        save_fasta(args.out + "_novel", orfs)
 
-    logging.info( u'Resulting ORFs: ' + str(len(orfs)))
-    save_fasta(args.out + "_novel", orfs)
-    clustered_orfs = cluster_orfs_new(orfs)
-    logging.info( u'Resulting clusters: ' + str(len(clustered_orfs)))
-    save_fasta(args.out + "_novel_clustered", clustered_orfs)
+    repres, clustered_orfs = cluster_orfs(orfs, load_gfa_edges(args.graph), int(t))
+    logging.info( u'Most reliable ORFs number: ' + str(len(repres)))
+    save_fasta(args.out + "_clustered", clustered_orfs)
+    save_fasta(args.out + "_most_reliable", repres)
 
