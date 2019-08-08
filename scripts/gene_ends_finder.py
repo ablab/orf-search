@@ -45,7 +45,7 @@ class GeneEndsFinder():
             cur_str = cur_state["prev"] + self.edges[cur_state["edge"]][cur_state["pos"]]
             if len(cur_str) == 3 and cur_str in find_set:
                 final_state = cur_state["edge"] + "_" + str(cur_state["pos"]) + "_" + cur_state["prev"] 
-                res.append({"path": self.restore_subpath(color, start_state, final_state), "d": cur_state["dist"]/3})
+                res.append({"path": self.restore_subpath(color, start_state, final_state), "d": cur_state["dist"]//3})
 
             if len(cur_str) == 3:
                 prev = ""

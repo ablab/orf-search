@@ -75,7 +75,7 @@ class Graph:
         res = []
         for e in path:
             res.append(self.coverage[e])
-        return sorted(res)[len(res)/2]
+        return sorted(res)[len(res)//2]
 
     def find_connected_edges(self, cur_edge, color):
         color.add(cur_edge)

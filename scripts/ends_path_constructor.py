@@ -65,7 +65,7 @@ class EndsPathConstructor():
                     path_len = self.path_constructor.restore_path_len(s_pos, e_pos, new_path)
                     all_paths.append(path_len)
                     if path_len < self.max_length and path_len%3 == 0 and path_len > self.min_length:
-                        paths.append([new_path, path_len/3])
+                        paths.append([new_path, path_len//3])
         cur_edges[cur_edge] -= 1
         return
 

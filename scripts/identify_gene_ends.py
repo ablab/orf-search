@@ -67,7 +67,7 @@ def compare_with_contig_paths(name, paths, g, uniqueedge_len):
             if not has_good_overlap:
                 for e in g.paths[c]:
                     if e in p["Edges"] and len(g.edges[e]) > uniqueedge_len:
-                        if len(g.graph[e].keys()) > 0 and len(g.graph[g.revert_edge(g.graph[e].keys()[0])]) > 1 and len(g.graph[g.revert_edge(e)]) > 1:
+                        if len(g.graph[e].keys()) > 0 and len(g.graph[g.revert_edge(list(g.graph[e].keys())[0])]) > 1 and len(g.graph[g.revert_edge(e)]) > 1:
                             supported = False
                             break
             if not supported:
