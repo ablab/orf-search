@@ -81,7 +81,7 @@ def is_inside(aln1, aln2, path_constructor):
     path2_s = ",".join(aln2["path"])
     if path1_s in path2_s and \
       (path1_s != path2_s or \
-      (path1_s == path2_s and (aln1["start"] > aln2["start"] or aln1["end"] < aln2["end"]))):
+      (path1_s == path2_s and (aln1["start"] > aln2["start"] and aln1["end"] < aln2["end"]))):
         index = 0
         for i in range(len(aln2["path"])):
             j = 0
