@@ -8,6 +8,7 @@ from joblib import Parallel, delayed
 
 import subprocess
 import logging
+import yaml
 
 import sys
 import argparse
@@ -250,6 +251,15 @@ def cluster_orfs(orfs, graph, t):
             res_cl.append(make_record(orf.seq, str(i) + "|" + orf.id.split(";")[0], str(i) + "|" + orf.name.split(";")[0]))
     return reprentatives_cl, res_cl
 
+def load_yaml():
+    p = os.path.abspath(__file__)
+    with open(p[:-len("scripts/filter_ORFs.py")] + "/config.yaml", 'r') as stream:
+        try:
+            res = yaml.load(stream)
+        except yaml.YAMLError as exc:
+            logging.error(exc)
+            exit(-1)
+    return res
 
 
 if __name__ == "__main__":
@@ -258,7 +268,6 @@ if __name__ == "__main__":
     parser.add_argument('-g', '--graph', help='gfa-file with assembly graph', required=True)
     parser.add_argument('-c', '--contigs', help='fasta-file with contigs', required=False)
     parser.add_argument('-p', '--proteins',  help='list of known genes', required=False)
-    parser.add_argument('-n', '--nucmer', help='path to nucmer', required=True)
     parser.add_argument('-o', '--out',  help='output prefix', required=True)
     parser.add_argument('-t', '--threads', help='threads number', required=False)
     args = parser.parse_args()
@@ -266,6 +275,12 @@ if __name__ == "__main__":
     t = args.threads
     if t == None:
         t = "1"
+    config = load_yaml()
+
+    MIN_RELIABLE_LENGTH = config["orfs_filtering"]["min_reliable_length"]
+    RELIABLE_LENGTH = config["orfs_filtering"]["reliable_length"]
+    IDENTITY = config["orfs_filtering"]["identity"]
+    ED_THRESHOLD = config["orfs_filtering"]["ed_threshold"]
 
     orfs = load_fasta(args.orfs)
     orfs_new = translate_orfs(orfs)
@@ -274,7 +289,7 @@ if __name__ == "__main__":
     save_fasta(args.out + "_total", orfs_new)
     if args.contigs != None:
         contigs = load_fasta(args.contigs)
-        orfs = align_with_nucmer(orfs, args.orfs, args.contigs, args.out, args.nucmer, t)
+        orfs = align_with_nucmer(orfs, args.orfs, args.contigs, args.out, config["nucmer_path"], t)
         orfs = translate_orfs(orfs)
         orfs = leave_unique(orfs)
         logging.info( u'Graph only orfs number: ' + str(len(orfs)))

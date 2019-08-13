@@ -1,2 +1,19 @@
 hmmer_path: 
-nucmer_path: /home/tdvorkina/soft/mummer-4.0.0beta2/
+nucmer_path: 
+
+pathracer:
+  evalue: 0.000000001
+  min_length: 0.9
+
+orfs_search:
+  max_restorable_length: 3000  # maximum distance in the graph from alignment where start/stodon can be found
+  max_path_length: 1500        # maximum length of path to start/stop codon
+  min_path_length: 0           # minimum length of path to start/stop codon
+  max_paths_num: 2000          # maximum number of paths can be generated during reconstruction of paths to start/stop codons
+  min_unique_edge_length: 500  # length of edges that considered us unique during filtering based on contigs
+
+orfs_filtering:
+  min_reliable_length: 100     # second minimum length of edge for filtering (used only if there is no edges with length > reliable length)
+  reliable_length: 300         # minimum length of edge for filtering
+  identity: 90                 # single-linkage clustering cluster two sequence into the same cluster if they are similar > indetity
+  ed_threshold: 0.2            # threshold for edit distance calculation

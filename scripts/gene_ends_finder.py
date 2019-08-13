@@ -7,14 +7,13 @@ cMet = set({"CAT", "CAC", "CAA"})
 Stop_codons = set({"TAA", "TAG", "TGA"})
 cStop_codons = set({"TTA", "CTA", "TCA"})
 
-
-
 class GeneEndsFinder():
 
-    def __init__(self, g):
+    def __init__(self, g, config):
         self.graph = g.graph
         self.edges = g.edges
         self.g = g
+        self.MAX_RESTORABLE_LENGTH = config["orfs_search"]["max_restorable_length"]
 
     def restore_subpath(self, color, s, f):
         path = []
@@ -156,11 +155,11 @@ class GeneEndsFinder():
         f_edge = inner_path[-1]
 
         if len(startcodon_dist) == 0:
-            max_length = 3000
+            max_length = self.MAX_RESTORABLE_LENGTH
         else:
             max_length = 3*max(startcodon_dist) + 300
 
         start_codon_pos = self.find_start_codons(s_p, s_edge, max_length, only_longest)
 
-        stop_codon_pos = self.find_stop_codons(f_p, f_edge, 3000)
+        stop_codon_pos = self.find_stop_codons(f_p, f_edge, self.MAX_RESTORABLE_LENGTH)
         return start_codon_pos, stop_codon_pos

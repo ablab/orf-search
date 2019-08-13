@@ -7,6 +7,7 @@ from joblib import Parallel, delayed
 import sys
 import argparse
 import logging
+import yaml
 
 import os
 from os import listdir
@@ -127,21 +128,21 @@ def remove_covered_orfs(alns, startcodon_dists, g):
     return res_alns, res_startcodon_dists
 
 def generate_orf(args):
-    aln, g, startcodon_dist, only_longest, uniqueedge = args[0], args[1], args[2], args[3], args[4]
+    aln, g, startcodon_dist, only_longest, config = args[0], args[1], args[2], args[3], args[4]
     logging.debug(aln["name"])
-    genes_finder = GeneEndsFinder(g)
+    genes_finder = GeneEndsFinder(g, config)
     start_codon_pos, stop_codon_pos = genes_finder.find_ends_positions(aln["start"], aln["end"], aln["path"], startcodon_dist, only_longest)
     logging.debug(u'Start codon num=' + str(len(start_codon_pos)) + ' Stop codons num=' + str(len(stop_codon_pos)))
-    ends_path_contructor = EndsPathConstructor(g)
+    ends_path_contructor = EndsPathConstructor(g, config)
     all_paths = ends_path_contructor.restore_full_paths(aln, start_codon_pos, stop_codon_pos, startcodon_dist)
-    all_paths = compare_with_contig_paths(aln["name"], all_paths, g, uniqueedge)
+    all_paths = compare_with_contig_paths(aln["name"], all_paths, g, config["orfs_search"]["min_unique_edge_length"])
     logging.debug(u'Paths num=' + str(len(all_paths)))
     return {"name": aln["name"], "all_paths": all_paths}
 
-def generate_orfs(output, output_shortest, alns, g, startcodon_dists, only_longest, uniqueedge, t):
+def generate_orfs(output, output_shortest, alns, g, startcodon_dists, only_longest, config, t):
     logging.debug( u'Threads ' + str(t) + u' alns ' + str(len(alns)))
     alns, startcodon_dists = remove_covered_orfs(alns, startcodon_dists, g)
-    all_orfs = Parallel(n_jobs=t, require='sharedmem')(delayed(generate_orf)([alns[i], g, startcodon_dists[i], only_longest, uniqueedge]) for i in range(len(alns)))
+    all_orfs = Parallel(n_jobs=t, require='sharedmem')(delayed(generate_orf)([alns[i], g, startcodon_dists[i], only_longest, config]) for i in range(len(alns)))
     with open(output, "a+") as fout:    
         for orf in all_orfs:
             name = orf["name"]
@@ -149,6 +150,16 @@ def generate_orfs(output, output_shortest, alns, g, startcodon_dists, only_longe
                 fout.write(">" + path["prefix"] + "_" + name + "|Edges=" + "_".join(path["Edges"]) + "|" + \
                            "|".join([k + "=" + str(path[k]) for k in path.keys() if k not in {"Edges", "seq", "prefix"}]) + "\n")
                 fout.write(path["seq"] + "\n")
+
+def load_yaml():
+    p = os.path.abspath(__file__)
+    with open(p[:-len("scripts/identify_gene_ends.py")] + "/config.yaml", 'r') as stream:
+        try:
+            res = yaml.load(stream)
+        except yaml.YAMLError as exc:
+            logging.error(exc)
+            exit(-1)
+    return res
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Print potential ORFs for all given graph alignments in fasta-format')
@@ -158,14 +169,12 @@ if __name__ == "__main__":
     parser.add_argument('-k', '--kmer', help='k-mer size in graph', required=True)
     parser.add_argument('-p', '--proteins',  help='list of genes to estimate hmms position on genes (domtbl has to be set)', required=False)
     parser.add_argument('-d', '--domtbl',  help='HMMer alignment of hmms to genes (genes has to be set)', required=False)
-    parser.add_argument('-e', '--evalue',  help='minimum e-value for HMM alignment', default=0.000000001)
-    parser.add_argument('-l', '--minlen',  help='minimum length', default=0.9)
     parser.add_argument('-f', '--longestorf', help='generate ORFs that have stop codon before start codon', action='store_true')
-    parser.add_argument('-u', '--uniqueedge',  help='length of unique edges in nucs', default=500, type=int)
     parser.add_argument('-o', '--out',  help='output prefix', required=True)
     parser.add_argument('-t', '--threads', help='threads number', required=False)
     args = parser.parse_args()
     logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'.log')
+    config = load_yaml()
     if args.hmms == None and args.sequences == None:
         logging.error( u'Please provide sequences or hmm alignments')
         exit(-1)
@@ -193,7 +202,8 @@ if __name__ == "__main__":
                         f.endswith("domtblout") ]
         for f in filenames:
             f_path = join(args.hmms, f)
-            alns.extend(load_mappings.load_pathracer_mapping(f_path, g.edges, float(args.minlen), float(args.evalue), K))
+            alns.extend(load_mappings.load_pathracer_mapping(f_path, g.edges, \
+                                                             config["pathracer"]["min_length"], config["pathracer"]["evalue"], K))
         for aln in alns:
             startcodon_dist = []
             if aln["name"] in hmm_hits:
@@ -208,7 +218,7 @@ if __name__ == "__main__":
             startcodon_dists.append([a["d"]])
         logging.info( u'Seqs: ' + str(len(alns)))
 
-    generate_orfs(output, output_shortest, alns, g, startcodon_dists, args.longestorf, args.uniqueedge, int(args.threads))
+    generate_orfs(output, output_shortest, alns, g, startcodon_dists, args.longestorf, config, int(args.threads))
 
 
 

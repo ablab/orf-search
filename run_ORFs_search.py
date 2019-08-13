@@ -38,16 +38,14 @@ def find_true_hmm_alignments(hmmer_path, proteins_file, hmms_file, evalue, threa
     return out_file + ".dtbl", return_code
 
 def extract_ORFs_from_graph(hmms_alignments, proteins_alignments, graph_file, k, proteins_file, \
-                            hmms_true_alignments, longestorf, minlen, evalue, threads, out_file, out_dir):
+                            hmms_true_alignments, longestorf, threads, out_file, out_dir):
     com = execution_path + "/scripts/identify_gene_ends.py "
     if os.path.exists(proteins_alignments):
         com += "-s " + proteins_alignments
     if os.path.exists(hmms_alignments):
         com += " -m " + hmms_alignments + \
                " -p " + proteins_file + \
-               " -d " + hmms_true_alignments + \
-               " -l " + str(minlen) + \
-               " -e " + str(evalue)
+               " -d " + hmms_true_alignments
     if longestorf:
         com += " -f "
     com += " -g " + graph_file + " -k " + str(k) + " -t " + str(threads) +" -o " + out_file
@@ -55,10 +53,10 @@ def extract_ORFs_from_graph(hmms_alignments, proteins_alignments, graph_file, k,
     return_code = subprocess.call([com], shell=True)
     return out_file + ".fasta", return_code
 
-def filter_orfs(orfs_sequences, graph, proteins_file, contigs_file, threads, nucmer_path, print_all, out_file, out_dir):
+def filter_orfs(orfs_sequences, graph, proteins_file, contigs_file, threads, print_all, out_file, out_dir):
 
     com = execution_path + "/scripts/filter_ORFs.py -s " + orfs_sequences + \
-                          " -n " + nucmer_path + " -g " + graph + " -t " + str(threads) + " -o " + out_file
+                        " -g " + graph + " -t " + str(threads) + " -o " + out_file
     if not print_all:
         com += " -c " + contigs_file + " -p " + proteins_file
     logging.info( u'Running: ' + com)
@@ -73,7 +71,7 @@ def load_yaml():
         except yaml.YAMLError as exc:
             logging.error(exc)
             exit(-1)
-    return res["hmmer_path"], res["nucmer_path"]
+    return res["hmmer_path"], res["pathracer"]["evalue"]
 
 
 if __name__ == "__main__":
@@ -86,8 +84,6 @@ if __name__ == "__main__":
     parser.add_argument('-c', '--contigs', help='fasta-file with assembly contigs', required=False)
     parser.add_argument('-f', '--longestorf', help='generate ORFs that have stop codon before start codon', action='store_true')
     parser.add_argument('-t', '--threads', help='number of threads', required=False)
-    parser.add_argument('-e', '--evalue',  help='minimum e-value for HMM alignment', default=0.000000001)
-    parser.add_argument('-l', '--minlen',  help='minimum length', default=0.9)
     parser.add_argument('-a', '--all', help='do not perform filtering based on contigs or known IPGs', required=False, action='store_true')
     parser.add_argument('-o', '--out', help='output directory', required=True)
     args = parser.parse_args()
@@ -95,11 +91,9 @@ if __name__ == "__main__":
     logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG)
     logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'run_ORFs_search.log')
 
-    hmmer_path, nucmer_path = load_yaml()
+    hmmer_path, evalue= load_yaml()
     if hmmer_path == None:
         hmmer_path = ""
-    if nucmer_path == None:
-        nucmer_path = ""
 
     if not os.path.exists(args.out):
         os.makedirs(args.out)
@@ -109,11 +103,11 @@ if __name__ == "__main__":
         t = int(args.threads)
 
     hmms_name = ".".join(args.hmms.split("/")[-1].split(".")[0:-1])
-    hmm_return_str, hmm_return_code = align_hmms(args.hmms, args.graph, args.kmer, str(args.evalue), min(t, 16), join(args.out, hmms_name))
+    hmm_return_str, hmm_return_code = align_hmms(args.hmms, args.graph, args.kmer, str(evalue), min(t, 16), join(args.out, hmms_name))
     if hmm_return_code != 0:
         logging.warning( u'HMM alignment failed')
     if hmm_return_code == 0 and args.sequences != None and not os.path.exists(join(args.out, hmms_name + ".dtbl")):
-        find_true_hmm_alignments(hmmer_path, args.sequences, args.hmms, str(args.evalue), t, join(args.out, hmms_name))
+        find_true_hmm_alignments(hmmer_path, args.sequences, args.hmms, str(evalue), t, join(args.out, hmms_name))
 
     if args.sequences != None and args.runspaligner:
         seq_name = args.sequences.split("/")[-1].split(".")[0]
@@ -130,13 +124,13 @@ if __name__ == "__main__":
 
     orfs_fasta, return_code = extract_ORFs_from_graph(hmm_return_str, seq_return_str, args.graph, args.kmer, \
                                                         args.sequences, join(args.out, hmms_name + ".dtbl"), \
-                                                        args.longestorf, str(args.minlen), str(args.evalue), t, join(args.out, "orfs_raw"), args.out)
+                                                        args.longestorf, t, join(args.out, "orfs_raw"), args.out)
 
     if return_code != 0:
         logging.error( u'Orfs generation failed')
         exit(-1)
 
-    final_orfs_str, return_code = filter_orfs(orfs_fasta, args.graph, args.sequences, args.contigs, t, nucmer_path, args.all, join(args.out, "orfs_final"), args.out)
+    final_orfs_str, return_code = filter_orfs(orfs_fasta, args.graph, args.sequences, args.contigs, t, args.all, join(args.out, "orfs_final"), args.out)
     if return_code != 0:
         logging.error( u'Filtering failed')
         exit(-1)

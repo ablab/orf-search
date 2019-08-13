@@ -42,11 +42,11 @@ class PathConstructor():
 
 class EndsPathConstructor():
     
-    def __init__(self, g):
+    def __init__(self, g, config):
         self.g = g
-        self.max_path_num = 2000
-        self.max_length = 1500
-        self.min_length = 0
+        self.max_path_num = config["orfs_search"]["max_paths_num"]
+        self.max_length = config["orfs_search"]["max_path_length"]
+        self.min_length = config["orfs_search"]["min_path_length"]
         self.path_constructor = PathConstructor(g)
 
     def search_all_path(self, cur_edge, s_pos, e_pos, cur_len, final_edge, path, paths, all_paths, cur_edges, edges_intersection):
