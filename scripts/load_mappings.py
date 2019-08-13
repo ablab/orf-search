@@ -10,22 +10,6 @@ def load_sequences(seq_file, fmt = "map"):
         res = list(SeqIO.parse(seq_file, "fasta"))
     return res
 
-def make_record(record_ini, seq, suf):
-    return SeqRecord(seq, id=record_ini.id + "/" + suf, name="protein_"+record_ini.name, description=record_ini.description)
-
-def load_seqedges(edges_file):
-    seq_nuc = SeqIO.to_dict(SeqIO.parse(edges_file, "fasta"))
-    seq = {}
-    seq_nuc_new = {}
-    for s in seq_nuc:
-        seq[s + "/0"] = make_record(seq_nuc[s], seq_nuc[s].seq.translate(), "0")
-        seq[s + "/1"] = make_record(seq_nuc[s], seq_nuc[s].seq[1:].translate(), "1")
-        seq[s + "/2"] = make_record(seq_nuc[s], seq_nuc[s].seq[2:].translate(), "2")
-        seq[s + "/0"] = make_record(seq_nuc[s], seq_nuc[s].seq.translate(), "0")
-        seq[s + "/1"] = make_record(seq_nuc[s], seq_nuc[s].seq[1:].translate(), "1")
-        seq[s + "/2"] = make_record(seq_nuc[s], seq_nuc[s].seq[2:].translate(), "2")
-    return seq_nuc, seq
-
 def convert_edge(p, edges):
     if p.endswith("'"):
         p = p[:-1]
