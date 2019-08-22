@@ -65,7 +65,7 @@ def filter_orfs(orfs_sequences, graph, proteins_file, contigs_file, threads, pri
 
 def load_yaml():
     p = os.path.abspath(__file__)
-    with open(p[:-len("run_ORFs_search.py")] + "/config.yaml", 'r') as stream:
+    with open(p[:-len("orfs_search.py")] + "/config.yaml", 'r') as stream:
         try:
             res = yaml.load(stream)
         except yaml.YAMLError as exc:
@@ -136,15 +136,3 @@ if __name__ == "__main__":
         exit(-1)
 
     logging.info( u'ORFs search finished. Please find results here: ' + args.out + "/")
-
-
-
-
-
-
-
-
-
-
-
-

@@ -10,12 +10,13 @@ Used libraries and tools:
 - Python3:
     - [biopython](https://biopython.org/wiki/Download)
     - [pyyaml](https://pyyaml.org/wiki/PyYAMLDocumentation)
-    - [Edlib](https://pypi.org/project/edlib/)
-    - [HMMer](http://hmmer.org)
+    - [edlib](https://pypi.org/project/edlib/)
     - [joblib](https://joblib.readthedocs.io/en/latest/installing.html)
+    - [argparse](https://pypi.org/project/argparse/)
 - [Mummer4](https://github.com/mummer4/mummer/releases)
-- [PathRacer](http://cab.spbu.ru/software/pathracer/)
-- [SPAligner](http://cab.spbu.ru/software/spaligner/)
+- [HMMer](http://hmmer.org)
+- [PathRacer](https://github.com/ablab/spades/archive/v0.5-recomb.tar.gz)
+- [SPAligner](https://github.com/ablab/spades/archive/spaligner-paper.tar.gz)
 
 Paths to local versions of HMMer and Mummer4 can be set in config.yaml (or leave it empty if they were installed globaly).
 Execution files of PathRacer and SPAligner must be in `aligners/` folder.
@@ -25,16 +26,16 @@ Execution files of PathRacer and SPAligner must be in `aligners/` folder.
 
 Search for potential Cry and Vip proteins in assembly graph of *Brevibacillus laterosporus* strain MG64(SRR8316749):
     
-    run_ORFs_search.py  -m test_data/pfamA.of.interest_pfam.hmm  # list of HMMs in HMMer format that represent domains for PathRacer input
-                        -s test_data/toxins.fasta                # list of known Cry and Vip sequences (either -m or -s has to be set)
-                        -g test_data/graph.gfa                   # path to assembly graph
-                        -k 55                                    # assembly graph k-mer size
-                        -c test_data/contigs.fasta               # contig sequences (optional)
-                        -t 16                                    # number of threads to use
-                        -o test                                  # output folder
+    orfs_search.py  -m test_data/pfamA.of.interest_pfam.hmm  # list of HMMs in HMMer format that represent domains for PathRacer input
+                    -s test_data/toxins.fasta                # list of known Cry and Vip sequences (either -m or -s has to be set)
+                    -g test_data/graph.gfa                   # path to assembly graph
+                    -k 55                                    # assembly graph k-mer size
+                    -c test_data/contigs.fasta               # contig sequences (optional)
+                    -t 8                                     # number of threads to use
+                    -o test                                  # output folder
 
 
-Try `run_ORFs_search.py -h` for more options. Test data for this example can be downloaded from [figshare](https://figshare.com/s/28de3bac33d6f0156998).
+Try `orfs_search.py -h` for more options. Test data for this example can be downloaded from [figshare](https://figshare.com/s/28de3bac33d6f0156998).
 
 ## Output
 
