@@ -1,12 +1,15 @@
+import logging
+
+logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG)
 try:
     from setuptools import setup, find_packages
 except:
-    logger.error('setuptools is not installed or outdated!\n\n'
+    logging.error('setuptools is not installed or outdated!\n\n'
                  'You can install or update setuptools using\n'
                  'pip install --upgrade setuptools (if you have pip)\n'
                  'or\n'
-                 'sudo apt-get install python-setuptools (on Ubuntu)\n',
-                 exit_with_code=1)
+                 'sudo apt-get install python-setuptools (on Ubuntu)\n')
+    exit(-1)
 
 setup(name='orf-search',
       version='0.4',
