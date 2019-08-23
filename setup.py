@@ -17,7 +17,7 @@ setup(name='orf-search',
       author_email='tanunia@gmail.com',
       url='https://github.com/ablab/orf-search',
       license='GPLv2',
-      packages=['','scripts'],
+      packages=find_packages(),
       install_requires=[
         'joblib',
         'edlib',
