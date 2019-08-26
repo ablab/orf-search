@@ -18,12 +18,12 @@ setup(name='orf-search',
       url='https://github.com/ablab/orf-search',
       license='GPLv2',
       packages=find_packages(),
-      install_requires=[
-        'joblib',
-        'edlib',
-        'argparse',
-        'pyyaml',
-        'biopython'
-      ],
+      # install_requires=[
+      #   'joblib',
+      #   'edlib',
+      #   'argparse',
+      #   'pyyaml',
+      #   'biopython'
+      # ],
       include_package_data = True
       )
