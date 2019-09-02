@@ -11,10 +11,12 @@ import resource
 import argparse
 import yaml
 
-execution_path = os.path.dirname(os.path.abspath(__file__))
+execution_path = os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))))
+PKG = 'orf_search'
+PKG_LOCATION = os.path.join(execution_path, PKG)
 
 def align_hmms(hmms_file, graph_file, k, evalue, threads, out_dir):
-    com = execution_path + "/aligners/pathracer " + hmms_file + " " + graph_file + " " + str(k) \
+    com = PKG_LOCATION + "/aligners/pathracer " + hmms_file + " " + graph_file + " " + str(k) \
         + " --output " + out_dir + " --rescore --annotate-graph --threads " + str(threads) \
         + " -E " + evalue + " --domE " + evalue + " --max-size 500000 > " + out_dir + ".log"
     logging.info( u'Running: ' + com)
@@ -22,15 +24,15 @@ def align_hmms(hmms_file, graph_file, k, evalue, threads, out_dir):
     return out_dir, return_code
 
 def align_sequences(graph_file, k, protein_file, threads, out_prefix):
-    com = execution_path + "/aligners/spaligner " + execution_path + "/aligners/spaligner_cfg.yaml -g " + graph_file + \
+    com = PKG_LOCATION  + "/aligners/spaligner " + execution_path + "/aligners/spaligner_cfg.yaml -g " + graph_file + \
                     " -k " + str(k) + " -s " + protein_file + " -t " + str(threads) + \
                      " -d protein -o " + out_prefix + " > " + out_prefix + ".log"
     logging.info( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
     return out_prefix + "/alignment.fasta", return_code
 
-def find_true_hmm_alignments(hmmer_path, proteins_file, hmms_file, evalue, threads, out_file):
-    com = hmmer_path + "hmmsearch --domtblout " + out_file + \
+def find_true_hmm_alignments(proteins_file, hmms_file, evalue, threads, out_file):
+    com = "hmmsearch --domtblout " + out_file + \
                     ".dtbl -E " + evalue + " --cpu " + str(threads)  + " " + hmms_file + " " + proteins_file \
                     + " > " + out_file + "_true.log"
     logging.info( u'Running: ' + com)
@@ -39,7 +41,7 @@ def find_true_hmm_alignments(hmmer_path, proteins_file, hmms_file, evalue, threa
 
 def extract_ORFs_from_graph(hmms_alignments, proteins_alignments, graph_file, k, proteins_file, \
                             hmms_true_alignments, longestorf, threads, out_file, out_dir):
-    com = execution_path + "/scripts/identify_gene_ends.py "
+    com = "python " + PKG_LOCATION + "/scripts/identify_gene_ends.py "
     if os.path.exists(proteins_alignments):
         com += "-s " + proteins_alignments
     if os.path.exists(hmms_alignments):
@@ -55,7 +57,7 @@ def extract_ORFs_from_graph(hmms_alignments, proteins_alignments, graph_file, k,
 
 def filter_orfs(orfs_sequences, graph, proteins_file, contigs_file, threads, print_all, out_file, out_dir):
 
-    com = execution_path + "/scripts/filter_ORFs.py -s " + orfs_sequences + \
+    com = "python " + PKG_LOCATION + "/scripts/filter_ORFs.py -s " + orfs_sequences + \
                         " -g " + graph + " -t " + str(threads) + " -o " + out_file
     if not print_all:
         com += " -c " + contigs_file + " -p " + proteins_file
@@ -64,14 +66,13 @@ def filter_orfs(orfs_sequences, graph, proteins_file, contigs_file, threads, pri
     return out_file + ".fasta", return_code
 
 def load_yaml():
-    p = os.path.abspath(__file__)
-    with open(p[:-len("orfs_search.py")] + "/config.yaml", 'r') as stream:
+    with open(PKG_LOCATION  + "/config.yaml", 'r') as stream:
         try:
             res = yaml.load(stream)
         except yaml.YAMLError as exc:
             logging.error(exc)
             exit(-1)
-    return res["hmmer_path"], res["pathracer"]["evalue"]
+    return res["pathracer"]["evalue"]
 
 
 if __name__ == "__main__":
@@ -91,9 +92,7 @@ if __name__ == "__main__":
     logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG)
     logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'run_ORFs_search.log')
 
-    hmmer_path, evalue= load_yaml()
-    if hmmer_path == None:
-        hmmer_path = ""
+    evalue= load_yaml()
 
     if not os.path.exists(args.out):
         os.makedirs(args.out)
@@ -107,7 +106,7 @@ if __name__ == "__main__":
     if hmm_return_code != 0:
         logging.warning( u'HMM alignment failed')
     if hmm_return_code == 0 and args.sequences != None and not os.path.exists(join(args.out, hmms_name + ".dtbl")):
-        find_true_hmm_alignments(hmmer_path, args.sequences, args.hmms, str(evalue), t, join(args.out, hmms_name))
+        find_true_hmm_alignments(args.sequences, args.hmms, str(evalue), t, join(args.out, hmms_name))
 
     if args.sequences != None and args.runspaligner:
         seq_name = args.sequences.split("/")[-1].split(".")[0]

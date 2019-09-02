@@ -14,16 +14,11 @@ except:
 setup(name='orf-search',
       version='0.4',
       author='Tatiana Dvorkina',
-      author_email='tanunia@gmail.com',
+      author_email='tedvorkina@gmail.com',
       url='https://github.com/ablab/orf-search',
       license='GPLv2',
-      packages=find_packages(),
-      # install_requires=[
-      #   'joblib',
-      #   'edlib',
-      #   'argparse',
-      #   'pyyaml',
-      #   'biopython'
-      # ],
-      include_package_data = True
+      packages=["orf_search", "orf_search.scripts"],
+      package_dir = {"orf_search": './', 'orf_search.scripts': 'scripts/'},
+      package_data= {'orf_search':['aligners/*', 'config.yaml']},
+      scripts = ['orfs_search.py']
       )

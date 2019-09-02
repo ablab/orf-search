@@ -67,7 +67,7 @@ def load_gfa_edges(gfa_filename):
                 coverage[node_id + "+"] = float(kc[len("KC:i:"):])/len(seq)
                 coverage[node_id + "-"] = float(kc[len("KC:i:"):])/len(seq)
     return res, coverage
-    
+
 def load_fasta(filename):
     record_lst = list(SeqIO.parse(filename, "fasta"))
     return record_lst
@@ -76,9 +76,9 @@ def save_fasta(filename, orfs):
     with open(filename + ".fasta", "w") as output_handle:
         SeqIO.write(orfs, output_handle, "fasta")
 
-def align_with_nucmer(orfs, orfs_filename, contigs_filename, outfile, nucmer_path, threads):
+def align_with_nucmer(orfs, orfs_filename, contigs_filename, outfile, threads):
     res = []
-    com = nucmer_path + "nucmer -t " + threads + " --sam-short " + outfile + ".sam " + contigs_filename + " " + orfs_filename
+    com = "nucmer -t " + threads + " --sam-short " + outfile + ".sam " + contigs_filename + " " + orfs_filename
     logging.info( u'Running nucmer: ' + com)
     subprocess.call([com], shell=True)
     aligned_set = set()
@@ -271,7 +271,7 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--out',  help='output prefix', required=True)
     parser.add_argument('-t', '--threads', help='threads number', required=False)
     args = parser.parse_args()
-    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG) #, filename = args.out + u'.log')
+    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'.log')
     t = args.threads
     if t == None:
         t = "1"
@@ -289,7 +289,7 @@ if __name__ == "__main__":
     save_fasta(args.out + "_total", orfs_new)
     if args.contigs != None:
         contigs = load_fasta(args.contigs)
-        orfs = align_with_nucmer(orfs, args.orfs, args.contigs, args.out, config["nucmer_path"], t)
+        orfs = align_with_nucmer(orfs, args.orfs, args.contigs, args.out, t)
         orfs = translate_orfs(orfs)
         orfs = leave_unique(orfs)
         logging.info( u'Graph only orfs number: ' + str(len(orfs)))

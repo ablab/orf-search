@@ -1,6 +1,3 @@
-hmmer_path: 
-nucmer_path: 
-
 pathracer:
   evalue: 0.000000001
   min_length: 0.9

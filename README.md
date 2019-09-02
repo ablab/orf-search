@@ -13,12 +13,11 @@ Used libraries and tools:
     - [edlib](https://pypi.org/project/edlib/)
     - [joblib](https://joblib.readthedocs.io/en/latest/installing.html)
     - [argparse](https://pypi.org/project/argparse/)
-- [Mummer4](https://github.com/mummer4/mummer/releases)
-- [HMMer](http://hmmer.org)
+    - [Mummer4](https://github.com/mummer4/mummer/releases)
+    - [HMMer](http://hmmer.org)
 - [PathRacer](https://github.com/ablab/spades/archive/v0.5-recomb.tar.gz)
 - [SPAligner](https://github.com/ablab/spades/archive/spaligner-paper.tar.gz)
 
-Paths to local versions of HMMer and Mummer4 can be set in config.yaml (or leave it empty if they were installed globaly).
 Execution files of PathRacer and SPAligner must be in `aligners/` folder.
 
 
