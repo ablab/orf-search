@@ -1,0 +1,52 @@
+{% set version = "0.4" %}
+
+package:
+  name: orfs-search
+  version: {{ version }}
+
+source:
+   path: /home/tdvorkina/orfs_search/orf-search/
+
+build:
+  script: python3.6 setup.py install
+
+requirements:
+    build:
+        - {{ compiler('cxx') }}
+        - bzip2
+        - cmake >=2.8.12
+        - boost >=1.67.0
+        - libboost >=1.67.0
+        - py-boost >=1.67.0
+        - joblib
+    host:
+        - python =3.6
+        - biopython >=1.70 # [not py27]
+        - argparse
+        - pyyaml
+        - edlib
+        - hmmer
+        - mummer4
+        - joblib
+        - bzip2
+        - python-edlib
+    run:
+        - python =3.6
+        - biopython >=1.70 # [not py27]
+        - argparse
+        - pyyaml
+        - edlib
+        - hmmer
+        - mummer4
+        - joblib
+        - bzip2
+        - python-edlib
+
+about: 
+    home: https://github.com/ablab/orf-search.git
+    license: GPLv2
+    summary:  tool for reconstruction open reading frames (ORFs) from assembly graphs
+
+test:
+    commands:
+        - orfs_search.py -h > /dev/null
