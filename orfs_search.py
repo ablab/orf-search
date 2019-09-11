@@ -24,7 +24,7 @@ def align_hmms(hmms_file, graph_file, k, evalue, threads, out_dir):
     return out_dir, return_code
 
 def align_sequences(graph_file, k, protein_file, threads, out_prefix):
-    com = PKG_LOCATION  + "/aligners/spaligner " + execution_path + "/aligners/spaligner_cfg.yaml -g " + graph_file + \
+    com = PKG_LOCATION  + "/aligners/spaligner " + PKG_LOCATION + "/aligners/spaligner_cfg.yaml -g " + graph_file + \
                     " -k " + str(k) + " -s " + protein_file + " -t " + str(threads) + \
                      " -d protein -o " + out_prefix + " > " + out_prefix + ".log"
     logging.info( u'Running: ' + com)
