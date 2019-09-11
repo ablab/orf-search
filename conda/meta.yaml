@@ -8,7 +8,7 @@ source:
    path: /home/tdvorkina/orfs_search/orf-search/
 
 build:
-  script: python3.6 setup.py install
+  script: python3.5 setup.py install
 
 requirements:
     build:
@@ -20,7 +20,7 @@ requirements:
         - py-boost >=1.67.0
         - joblib
     host:
-        - python =3.6
+        - python =3.5
         - biopython >=1.70 # [not py27]
         - argparse
         - pyyaml
@@ -31,7 +31,7 @@ requirements:
         - bzip2
         - python-edlib
     run:
-        - python =3.6
+        - python =3.5
         - biopython >=1.70 # [not py27]
         - argparse
         - pyyaml
