@@ -10,11 +10,15 @@ The easiest way to install `orfs-search` is via conda:
 
     conda install -c tatianadvorkina -c conda-forge -c bioconda orfs-search
 
+or if you are using Python2 by default you can create environment and install package in it:
+ 
+    conda create -n orfs_search  -c tatianadvorkina -c conda-forge -c bioconda python=3.5 orfs-search
+    conda activate  orfs_search
+
 Alternatively you can download git repo and all packages by yourself.
 
 The main pipeline is written in Python3 and uses several libraries described below.
-Used libraries and tools: 
-- Python3.6:
+- Python3
     - [biopython](https://biopython.org/wiki/Download)
     - [pyyaml](https://pyyaml.org/wiki/PyYAMLDocumentation)
     - [edlib](https://pypi.org/project/edlib/)
