@@ -19,6 +19,6 @@ setup(name='orf-search',
       license='GPLv2',
       packages=["orf_search", "orf_search.scripts"],
       package_dir = {"orf_search": './', 'orf_search.scripts': 'scripts/'},
-      package_data= {'orf_search':['aligners/*', 'config.yaml']},
+      package_data= {'orf_search':['aligners/*', 'config.yaml', 'tiny_dataset/*']},
       scripts = ['orfs_search.py']
       )

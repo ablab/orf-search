@@ -2,6 +2,7 @@
 import sys
 import os
 from os.path import isfile, isdir, join
+import tempfile
 
 import logging
 
@@ -60,9 +61,11 @@ def filter_orfs(orfs_sequences, graph, proteins_file, contigs_file, threads, pri
     com = "python " + PKG_LOCATION + "/scripts/filter_ORFs.py -s " + orfs_sequences + \
                         " -g " + graph + " -t " + str(threads) + " -o " + out_file
     if not print_all:
-        com += " -c " + contigs_file + " -p " + proteins_file
+        if contigs_file != None:
+            com += " -c " + contigs_file
+        com += " -p " + proteins_file
     logging.info( u'Running: ' + com)
-    subprocess.call([com], shell=True)
+    return_code = subprocess.call([com], shell=True)
     return out_file + ".fasta", return_code
 
 def load_yaml():
@@ -75,7 +78,7 @@ def load_yaml():
     return res["pathracer"]["evalue"]
 
 
-if __name__ == "__main__":
+def main(args):
     parser = argparse.ArgumentParser(description='Searches for potential genes in assembly graphs')
     parser.add_argument('-m', '--hmms', help='file with hmms in HMMer format', required=True)
     parser.add_argument('-s', '--sequences', help='fasta-file with proteins(optional)', required=False)
@@ -87,10 +90,19 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--threads', help='number of threads', required=False)
     parser.add_argument('-a', '--all', help='do not perform filtering based on contigs or known IPGs', required=False, action='store_true')
     parser.add_argument('-o', '--out', help='output directory', required=True)
-    args = parser.parse_args()
+    is_test = False
+    if len(args) == 2 and args[1] == "--test":
+        is_test = True
+        tmp_dir = tempfile.TemporaryDirectory()
+        args = [args[0], "-m", PKG_LOCATION  + "/tiny_dataset/ricinb_lectin2.hmm", "-s", PKG_LOCATION  + "/tiny_dataset/toxin.fasta", \
+                         "-r", "-g", PKG_LOCATION  + "/tiny_dataset/graph.gfa", "-k", "55", "-o", tmp_dir.name]
+    args = parser.parse_args(args[1:])
 
     logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG)
-    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'run_ORFs_search.log')
+    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'orfs_search.log')
+
+    if is_test:
+        logging.info(u'Start test on a small dataset...')
 
     evalue= load_yaml()
 
@@ -135,3 +147,12 @@ if __name__ == "__main__":
         exit(-1)
 
     logging.info( u'ORFs search finished. Please find results here: ' + args.out + "/")
+
+    if is_test:
+        logging.info(u'The test finished successfully!')
+        tmp_dir.cleanup()
+
+
+
+if __name__ == "__main__":
+    main(sys.argv)
