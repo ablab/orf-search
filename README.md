@@ -9,11 +9,13 @@ It incorporates the power of two graph alignment tools (PathRacer and SPAligner)
 The easiest way to install `orfs-search` is via conda:
 
     conda install -c tatianadvorkina -c conda-forge -c bioconda orfs-search
+    orfs_search.py --test
 
 or if you are using Python2 by default you can create environment and install package in it:
  
     conda create -n orfs_search  -c tatianadvorkina -c conda-forge -c bioconda python=3.5 orfs-search
     conda activate  orfs_search
+    orfs_search.py --test
 
 Alternatively you can download git repo and all packages by yourself.
 
