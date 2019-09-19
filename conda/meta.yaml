@@ -5,7 +5,7 @@ package:
   version: {{ version }}
 
 source:
-   path: /home/tdvorkina/orfs_search/orf-search/
+   path: ../
 
 build:
   script: python3.5 setup.py install
