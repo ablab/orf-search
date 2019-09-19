@@ -124,18 +124,18 @@ def leave_unique(orfs):
     res = []
     seq_set = set()
     for orf in orfs:
-        seq_set.add(orf.seq)
+        seq_set.add(str(orf.seq))
 
     for s in seq_set:
         sid = []
         name = []
         desc = []
         for orf in orfs:
-            if s == orf.seq:
+            if s == str(orf.seq):
                 name.append(orf.name)
                 sid.append(orf.id)
                 desc.append(orf.description)
-        res.append(make_record(s, ";".join(name), ";".join(sid), ";".join(desc)))
+        res.append(make_record(orf.seq, ";".join(name), ";".join(sid), ";".join(desc)))
     return res
 
 def leave_unknown(orfs, known_proteins):
@@ -181,7 +181,7 @@ def union_sets(a, b, parent, rank):
 
 def in_one_cluster(args):
     s1, s2, comparison_res, ind = args[0], args[1], args[2], args[3]
-    in_one = s1 in s2 if len(s1) < len(s2) else s2 in s1
+    in_one = str(s1) in str(s2) if len(s1) < len(s2) else str(s2) in str(s1)
     comparison_res[ind] = in_one or aai([s2, s1]) > IDENTITY
 
 def divide_into_clusters(orfs, t):
