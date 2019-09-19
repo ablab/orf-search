@@ -20,7 +20,8 @@ def align_hmms(hmms_file, graph_file, k, evalue, threads, out_dir):
     com = PKG_LOCATION + "/aligners/pathracer " + hmms_file + " " + graph_file + " " + str(k) \
         + " --output " + out_dir + " --rescore --annotate-graph --threads " + str(threads) \
         + " -E " + evalue + " --domE " + evalue + " --max-size 500000 > " + out_dir + ".log"
-    logging.info( u'Running: ' + com)
+    logging.info( u'Running HMM alignment. See log in ' + out_dir + u'.log')
+    logging.debug( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
     return out_dir, return_code
 
@@ -28,7 +29,8 @@ def align_sequences(graph_file, k, protein_file, threads, out_prefix):
     com = PKG_LOCATION  + "/aligners/spaligner " + PKG_LOCATION + "/aligners/spaligner_cfg.yaml -g " + graph_file + \
                     " -k " + str(k) + " -s " + protein_file + " -t " + str(threads) + \
                      " -d protein -o " + out_prefix + " > " + out_prefix + ".log"
-    logging.info( u'Running: ' + com)
+    logging.info( u'Running Sequence Alignment. See log in ' + out_prefix + u'.log')
+    logging.debug( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
     return out_prefix + "/alignment.fasta", return_code
 
@@ -36,7 +38,8 @@ def find_true_hmm_alignments(proteins_file, hmms_file, evalue, threads, out_file
     com = "hmmsearch --domtblout " + out_file + \
                     ".dtbl -E " + evalue + " --cpu " + str(threads)  + " " + hmms_file + " " + proteins_file \
                     + " > " + out_file + "_true.log"
-    logging.info( u'Running: ' + com)
+    logging.info( u'Running Start Codon Distance Estimator. See log in ' + out_file + u'_true.log')
+    logging.debug( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
     return out_file + ".dtbl", return_code
 
@@ -52,7 +55,8 @@ def extract_ORFs_from_graph(hmms_alignments, proteins_alignments, graph_file, k,
     if longestorf:
         com += " -f "
     com += " -g " + graph_file + " -k " + str(k) + " -t " + str(threads) +" -o " + out_file
-    logging.info( u'Running: ' + com)
+    logging.info( u'Extracting ORFs from assembly graph. See log in ' + out_file + u'.log')
+    logging.debug( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
     return out_file + ".fasta", return_code
 
@@ -64,7 +68,8 @@ def filter_orfs(orfs_sequences, graph, proteins_file, contigs_file, threads, pri
         if contigs_file != None:
             com += " -c " + contigs_file
         com += " -p " + proteins_file
-    logging.info( u'Running: ' + com)
+    logging.info( u'Filtering ORFs. See log in ' + out_file + u'.log')
+    logging.debug( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
     return out_file + ".fasta", return_code
 
@@ -99,16 +104,16 @@ def main(args):
 
     args = parser.parse_args(args[1:])
 
-    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG)
-    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'orfs_search.log')
+    if not os.path.exists(args.out):
+        os.makedirs(args.out)
+
+    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.INFO)
+    #logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'/orfs_search.log')
 
     if is_test:
         logging.info(u'Start test on a small dataset...')
 
     evalue= load_yaml()
-
-    if not os.path.exists(args.out):
-        os.makedirs(args.out)
 
     t = 1
     if args.threads != None:
@@ -147,7 +152,8 @@ def main(args):
         logging.error( u'Filtering failed')
         exit(-1)
 
-    logging.info( u'ORFs search finished. Please find results here: ' + args.out + "/")
+    logging.info( u'ORFs search finished. Please find results in: ' + args.out + "/")
+    logging.info( u'Potential novel ORFs can be found in: ' + args.out + "/orfs_final_most_reliable.fasta")
 
     if is_test:
         logging.info(u'The test finished successfully!')
