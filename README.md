@@ -9,13 +9,11 @@ It incorporates the power of two graph alignment tools (PathRacer and SPAligner)
 The easiest way to install `orfs-search` is via conda:
 
     conda install -c tatianadvorkina -c conda-forge -c bioconda orfs-search
-    orfs_search.py --test
 
 or if you are using Python2 by default you can create environment and install package in it:
  
     conda create -n orfs_search  -c tatianadvorkina -c conda-forge -c bioconda python=3.5 orfs-search
     conda activate  orfs_search
-    orfs_search.py --test
 
 Alternatively you can download git repo and all packages by yourself.
 
@@ -31,37 +29,61 @@ The main pipeline is written in Python3 and uses several libraries described bel
 - [PathRacer](https://github.com/ablab/spades/archive/v0.5-recomb.tar.gz)
 - [SPAligner](https://github.com/ablab/spades/archive/spaligner-paper.tar.gz)
 
-Paths to local versions of HMMer and Mummer4 can be set in config.yaml (or leave it empty if they were installed globaly).
 Execution files of PathRacer and SPAligner must be in `aligners/` folder.
+
+Check sucessfull installation by running:
+
+    orfs_search.py --test
+
+
+## Output
+
+The output for the test run will be saved in `./tiny_dataset_test/` folder:
+    
+    ricinb_lectin2/                    PathRacer run results
+    toxin/                             SPAligner run results
+    orfs_raw.fasta                     Full list of ORFs that were found in assembly graph
+    orfs_total.fasta                   List of ORFs after initial filtering
+    orfs_graphonly.fasta               List of ORFs that can be found only in graph (not in contigs)
+    orfs_novel.fasta                   List of novel ORFs (not presented in list of given protein sequences)
+    orfs_final_clustered.fasta         List of ORFs clustered with 90% identity
+    orfs_final_most_reliable.fasta     List of representatives for each cluster (usually contains 2-3 sequences per cluster)
 
 
 ## Running
 
-Search for potential Cry and Vip proteins in assembly graph of *Brevibacillus laterosporus* strain MG64(SRR8316749):
-    
-    orfs_search.py  -m test_data/pfamA.of.interest_pfam.hmm  # list of HMMs in HMMer format that represent domains for PathRacer input
-                    -s test_data/toxins.fasta                # list of known Cry and Vip sequences (either -m or -s has to be set)
-                    -g test_data/graph.gfa                   # path to assembly graph
-                    -k 55                                    # assembly graph k-mer size
-                    -c test_data/contigs.fasta               # contig sequences (optional)
-                    -t 8                                     # number of threads to use
-                    -o test                                  # output folder
+Synopsis: 
 
+    orfs_search.py -m HMMS -g GRAPH -k KMER -o OUT [-s SEQUENCES] [-r] [-c CONTIGS] [-f] [-t THREADS] [-a]
 
-Try `orfs_search.py -h` for more options. Test data for this example can be downloaded from [figshare](https://figshare.com/s/28de3bac33d6f0156998).
+Parameters are:
 
-## Output
+`-m HMMS`
+    list of HMMs in HMMer format that represent domains for PathRacer input
 
-Results can be found in user defined folder `-o test`:
-    
-    test/pfamA.of.interest_pfam/            PathRacer run results
-    test/toxins/                            SPAligner run results
-    test/orfs_raw.fasta                     Full list of ORFs that were found in assembly graph
-    test/orfs_total.fasta                   List of ORFs after initial filtering
-    test/orfs_graphonly.fasta               List of ORFs that can be found only in graph (not in contigs)
-    test/orfs_novel.fasta                   List of novel ORFs (not presented in Bacillus thuringiensis Toxin Nomenclature)
-    test/orfs_final_clustered.fasta         List of ORFs clustered with 90% identity
-    test/orfs_final_most_reliable.fasta     List of representatives for each cluster (usually contains 2-3 sequences per cluster)
+`-g GRAPH`
+    path to assembly graph (in GFA format), it can contain paths (starting with `P` lines) that will be used in filtering
+
+`-k KMER`
+    assembly graph k-mer size
+
+`-o OUT`
+    output directory name
+
+`-s SEQUENCES`
+    list of known IPG sequences
+
+`-r`
+    run IPG sequences to graph alignemnt (may be time-consuming)
+
+`-c CONTIGS`
+    contigs sequences in fasta file
+
+`-t THREADS`
+    number of threads (default: 1)
+
+`-a`
+    do not perform filtering based on contigs or known IPGs
 
 
 ## Main algorithm
