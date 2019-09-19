@@ -92,10 +92,10 @@ def main(args):
     is_test = False
     if len(args) == 2 and args[1] == "--test":
         is_test = True
-        tmp_dir = tempfile.TemporaryDirectory()
+        test_dir = "tiny_dataset_test"
         p = os.path.abspath(__file__)
         args = [args[0], "-m", p[:-len("orfs_search.py")]  + "/tiny_dataset/ricinb_lectin2.hmm", "-s", p[:-len("orfs_search.py")] + "/tiny_dataset/toxin.fasta", \
-                         "-r", "-g", p[:-len("orfs_search.py")]  + "/tiny_dataset/graph.gfa", "-k", "55", "-o", tmp_dir.name]
+                         "-r", "-g", p[:-len("orfs_search.py")]  + "/tiny_dataset/graph.gfa", "-k", "55", "-o", test_dir]
     args = parser.parse_args(args[1:])
 
     logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG)
@@ -152,7 +152,6 @@ def main(args):
 
     if is_test:
         logging.info(u'The test finished successfully!')
-        tmp_dir.cleanup()
 
 
 
