@@ -76,9 +76,9 @@ def save_fasta(filename, orfs):
     with open(filename + ".fasta", "w") as output_handle:
         SeqIO.write(orfs, output_handle, "fasta")
 
-def align_with_nucmer(orfs, orfs_filename, contigs_filename, outfile, nucmer_path, threads):
+def align_with_nucmer(orfs, orfs_filename, contigs_filename, outfile, threads):
     res = []
-    com = nucmer_path + "nucmer -t " + threads + " --sam-short " + outfile + ".sam " + contigs_filename + " " + orfs_filename
+    com = "nucmer -t " + threads + " --sam-short " + outfile + ".sam " + contigs_filename + " " + orfs_filename
     logging.info( u'Running nucmer: ' + com)
     subprocess.call([com], shell=True)
     aligned_set = set()
@@ -124,18 +124,18 @@ def leave_unique(orfs):
     res = []
     seq_set = set()
     for orf in orfs:
-        seq_set.add(orf.seq)
+        seq_set.add(str(orf.seq))
 
     for s in seq_set:
         sid = []
         name = []
         desc = []
         for orf in orfs:
-            if s == orf.seq:
+            if s == str(orf.seq):
                 name.append(orf.name)
                 sid.append(orf.id)
                 desc.append(orf.description)
-        res.append(make_record(s, ";".join(name), ";".join(sid), ";".join(desc)))
+        res.append(make_record(orf.seq, ";".join(name), ";".join(sid), ";".join(desc)))
     return res
 
 def leave_unknown(orfs, known_proteins):
@@ -181,7 +181,7 @@ def union_sets(a, b, parent, rank):
 
 def in_one_cluster(args):
     s1, s2, comparison_res, ind = args[0], args[1], args[2], args[3]
-    in_one = s1 in s2 if len(s1) < len(s2) else s2 in s1
+    in_one = str(s1) in str(s2) if len(s1) < len(s2) else str(s2) in str(s1)
     comparison_res[ind] = in_one or aai([s2, s1]) > IDENTITY
 
 def divide_into_clusters(orfs, t):
@@ -289,7 +289,7 @@ if __name__ == "__main__":
     save_fasta(args.out + "_total", orfs_new)
     if args.contigs != None:
         contigs = load_fasta(args.contigs)
-        orfs = align_with_nucmer(orfs, args.orfs, args.contigs, args.out, config["nucmer_path"], t)
+        orfs = align_with_nucmer(orfs, args.orfs, args.contigs, args.out, t)
         orfs = translate_orfs(orfs)
         orfs = leave_unique(orfs)
         logging.info( u'Graph only orfs number: ' + str(len(orfs)))
