@@ -152,7 +152,8 @@ def leave_unknown(orfs, known_proteins):
 
 def get_metainfo(s):
     keys = {"Edges":[], "apriori_startd_prob": 0, "coverage": 0}
-    for c in s.split("|"):
+    ss = s.split(";")[0]
+    for c in ss.split("|"):
         for k in keys:
             if c.startswith(k):
                 if k == "Edges":
