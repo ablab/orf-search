@@ -49,9 +49,10 @@ def extract_ORFs_from_graph(hmms_alignments, proteins_alignments, graph_file, k,
     if os.path.exists(proteins_alignments):
         com += "-s " + proteins_alignments
     if os.path.exists(hmms_alignments):
-        com += " -m " + hmms_alignments + \
-               " -p " + proteins_file + \
-               " -d " + hmms_true_alignments
+        com += " -m " + hmms_alignments
+    if proteins_file != None:
+        com += " -p " + proteins_file \
+               +" -d " + hmms_true_alignments
     if longestorf:
         com += " -f "
     com += " -g " + graph_file + " -k " + str(k) + " -t " + str(threads) +" -o " + out_file
@@ -67,7 +68,8 @@ def filter_orfs(orfs_sequences, graph, proteins_file, contigs_file, threads, pri
     if not print_all:
         if contigs_file != None:
             com += " -c " + contigs_file
-        com += " -p " + proteins_file
+        if proteins_file != None:
+            com += " -p " + proteins_file
     logging.info( u'Filtering ORFs. See log in ' + out_file + u'.log')
     logging.debug( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
