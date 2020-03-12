@@ -9,6 +9,9 @@ import logging
 import subprocess
 import resource
 
+import scripts.load_mappings
+import scripts.input_sanity_check
+
 import argparse
 import yaml
 
@@ -17,7 +20,7 @@ execution_path = os.path.dirname(os.path.abspath(__file__))
 def align_hmms(hmms_file, graph_file, k, evalue, threads, out_dir):
     com = execution_path + "/aligners/pathracer " + hmms_file + " " + graph_file + " " + str(k) \
         + " --output " + out_dir + " --rescore --annotate-graph --threads " + str(threads) \
-        + " -E " + evalue + " --domE " + evalue + " --max-size 500000 > " + out_dir + ".log"
+        + " -E " + evalue + " --domE " + evalue + " --max-size 2500000 > " + out_dir + ".log"
     logging.info( u'Running HMM alignment. See log in ' + out_dir + u'.log')
     logging.debug( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
@@ -108,7 +111,7 @@ def main(args):
     if not os.path.exists(args.out):
         os.makedirs(args.out)
 
-    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.INFO)
+    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG)
     #logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'/orfs_search.log')
 
     if is_test:
@@ -122,16 +125,23 @@ def main(args):
     if args.threads != None:
         t = int(args.threads)
 
+    if args.sequences != None:
+        check_return_code, sequences_filename = scripts.input_sanity_check.check_sequences(args.sequences, args.out)
+        if not check_return_code:
+            logging.warning( u'Proteins file contains non-unique sequences, equal sequences were collapsed')
+    else:
+        sequences_filename = None
+
     hmms_name = ".".join(args.hmms.split("/")[-1].split(".")[0:-1])
     hmm_return_str, hmm_return_code = align_hmms(args.hmms, args.graph, args.kmer, str(evalue), min(t, 16), join(args.out, hmms_name))
     if hmm_return_code != 0:
         logging.warning( u'HMM alignment failed')
-    if hmm_return_code == 0 and args.sequences != None and not os.path.exists(join(args.out, hmms_name + ".dtbl")):
-        find_true_hmm_alignments(hmmer_path, args.sequences, args.hmms, str(evalue), t, join(args.out, hmms_name))
+    if hmm_return_code == 0 and sequences_filename != None and not os.path.exists(join(args.out, hmms_name + ".dtbl")):
+        find_true_hmm_alignments(hmmer_path, sequences_filename, args.hmms, str(evalue), t, join(args.out, hmms_name))
 
-    if args.sequences != None and args.runspaligner:
-        seq_name = args.sequences.split("/")[-1].split(".")[0]
-        seq_return_str, seq_return_code = align_sequences(args.graph, args.kmer, args.sequences, t, join(args.out, seq_name))
+    if sequences_filename != None and args.runspaligner:
+        seq_name = sequences_filename
+        seq_return_str, seq_return_code = align_sequences(args.graph, args.kmer, sequences_filename, t, join(args.out, seq_name))
         if seq_return_code != 0:
             logging.warning( u'Sequence alignment failed')
     else:
@@ -143,14 +153,14 @@ def main(args):
         exit(-1)
 
     orfs_fasta, return_code = extract_ORFs_from_graph(hmm_return_str, seq_return_str, args.graph, args.kmer, \
-                                                        args.sequences, join(args.out, hmms_name + ".dtbl"), \
+                                                        sequences_filename, join(args.out, hmms_name + ".dtbl"), \
                                                         args.longestorf, t, join(args.out, "orfs_raw"), args.out)
 
     if return_code != 0:
         logging.error( u'Orfs generation failed')
         exit(-1)
 
-    final_orfs_str, return_code = filter_orfs(orfs_fasta, args.graph, args.sequences, args.contigs, t, args.all, join(args.out, "orfs_final"), args.out)
+    final_orfs_str, return_code = filter_orfs(orfs_fasta, args.graph, sequences_filename, args.contigs, t, args.all, join(args.out, "orfs_final"), args.out)
     if return_code != 0:
         logging.error( u'Filtering failed')
         exit(-1)
