@@ -125,7 +125,6 @@ def leave_unique(orfs):
     seq_set = set()
     for orf in orfs:
         seq_set.add(str(orf.seq))
-
     for s in seq_set:
         sid = []
         name = []
@@ -135,7 +134,7 @@ def leave_unique(orfs):
                 name.append(orf.name)
                 sid.append(orf.id)
                 desc.append(orf.description)
-        res.append(make_record(orf.seq, ";".join(name), ";".join(sid), ";".join(desc)))
+        res.append(make_record(Seq(s), ";".join(name), ";".join(sid), ";".join(desc)))
     return res
 
 def leave_unknown(orfs, known_proteins):
@@ -204,7 +203,7 @@ def divide_into_clusters(orfs, t):
         clusters_id[ind][orfs[i].name] = orfs[i]
 
     for cl in clusters_id:
-            clusters.append(clusters_id[cl])
+        clusters.append(clusters_id[cl])
 
     return clusters
 
@@ -242,6 +241,7 @@ def pick_representatives(clusters, orfs, graph):
     return res
 
 def cluster_orfs(orfs, graph, t):
+    logging.info( u'Number of orfs: ' + str(len(orfs)))
     clusters = divide_into_clusters(orfs, t)
     logging.info( u'Number of clusters: ' + str(len(clusters)))
     reprentatives_cl = pick_representatives(clusters, orfs, graph)
