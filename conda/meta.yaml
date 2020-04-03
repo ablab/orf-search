@@ -1,7 +1,7 @@
 {% set version = "0.4" %}
 
 package:
-  name: orfs-search
+  name: orf-search
   version: {{ version }}
 
 source:
@@ -49,4 +49,4 @@ about:
 
 test:
     commands:
-        - orfs_search.py -h > /dev/null
+        - orf_search.py -h > /dev/null

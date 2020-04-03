@@ -79,7 +79,12 @@ def filter_orfs(orfs_sequences, graph, proteins_file, contigs_file, threads, pri
     return out_file + ".fasta", return_code
 
 def load_yaml():
+<<<<<<< HEAD:orf_search.py
     with open(PKG_LOCATION  + "/config.yaml", 'r') as stream:
+=======
+    p = os.path.abspath(__file__)
+    with open(p[:-len("orf_search.py")] + "/config.yaml", 'r') as stream:
+>>>>>>> f82168a... Rename orfS_search -> orf_search:orf_search.py
         try:
             res = yaml.load(stream)
         except yaml.YAMLError as exc:
