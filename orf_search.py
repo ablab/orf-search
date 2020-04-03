@@ -78,7 +78,7 @@ def filter_orfs(orfs_sequences, graph, proteins_file, contigs_file, threads, pri
 
 def load_yaml():
     p = os.path.abspath(__file__)
-    with open(p[:-len("orfs_search.py")] + "/config.yaml", 'r') as stream:
+    with open(p[:-len("orf_search.py")] + "/config.yaml", 'r') as stream:
         try:
             res = yaml.load(stream)
         except yaml.YAMLError as exc:
@@ -104,15 +104,15 @@ def main(args):
         is_test = True
         test_dir = "tiny_dataset_test"
         p = os.path.abspath(__file__)
-        args = [args[0], "-m", p[:-len("orfs_search.py")]  + "/tiny_dataset/ricinb_lectin2.hmm", "-s", p[:-len("orfs_search.py")] + "/tiny_dataset/toxin.fasta", \
-                         "-r", "-g", p[:-len("orfs_search.py")]  + "/tiny_dataset/graph.gfa", "-k", "55", "-o", test_dir]
+        args = [args[0], "-m", p[:-len("orf_search.py")]  + "/tiny_dataset/ricinb_lectin2.hmm", "-s", p[:-len("orf_search.py")] + "/tiny_dataset/toxin.fasta", \
+                         "-r", "-g", p[:-len("orf_search.py")]  + "/tiny_dataset/graph.gfa", "-k", "55", "-o", test_dir]
     args = parser.parse_args(args[1:])
 
     if not os.path.exists(args.out):
         os.makedirs(args.out)
 
     logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG)
-    #logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'/orfs_search.log')
+    #logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'/orf_search.log')
 
     if is_test:
         logging.info(u'Start test on a small dataset...')
