@@ -1,4 +1,4 @@
-# ORFs search in assembly graphs
+# ORF search in assembly graphs
 
 Pipeline for generating potential gene sequences, ORFs (Open Reading Frames), from assembly graphs.
 
@@ -6,14 +6,14 @@ It incorporates the power of two graph alignment tools (PathRacer and SPAligner)
 
 ## Installation
 
-The easiest way to install `orfs-search` is via conda:
+The easiest way to install `orf-search` is via conda:
 
-    conda install -c tatianadvorkina -c conda-forge -c bioconda orfs-search
+    conda install -c tatianadvorkina -c conda-forge -c bioconda orf-search
 
 or if you are using Python2 by default you can create environment and install package in it:
  
-    conda create -n orfs_search  -c tatianadvorkina -c conda-forge -c bioconda python=3.5 orfs-search
-    conda activate  orfs_search
+    conda create -n orf_search  -c tatianadvorkina -c conda-forge -c bioconda python=3.5 orf-search
+    conda activate  orf_search
 
 Alternatively you can download git repo and all packages by yourself.
 
@@ -33,7 +33,7 @@ Execution files of PathRacer and SPAligner must be in `aligners/` folder.
 
 Check sucessfull installation by running:
 
-    orfs_search.py --test
+    orf_search.py --test
 
 
 ## Output
@@ -54,7 +54,7 @@ The output for the test run will be saved in `./tiny_dataset_test/` folder:
 
 Synopsis: 
 
-    orfs_search.py -m HMMS -g GRAPH -k KMER -o OUT [-s SEQUENCES] [-r] [-c CONTIGS] [-f] [-t THREADS] [-a]
+    orf_search.py -m HMMS -g GRAPH -k KMER -o OUT [-s SEQUENCES] [-r] [-c CONTIGS] [-f] [-t THREADS] [-a]
 
 Parameters are:
 

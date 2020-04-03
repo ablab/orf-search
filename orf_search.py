@@ -107,8 +107,9 @@ def main(args):
     if not os.path.exists(args.out):
         os.makedirs(args.out)
 
-    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.INFO)
-    #logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'/orfs_search.log')
+
+    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG)
+    #logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'/orf_search.log')
 
     if is_test:
         logging.info(u'Start test on a small dataset...')
