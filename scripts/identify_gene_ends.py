@@ -128,10 +128,10 @@ def remove_covered_orfs(alns, startcodon_dists, g):
     return res_alns, res_startcodon_dists
 
 def generate_orf(args):
-    aln, g, startcodon_dist, only_longest, config = args[0], args[1], args[2], args[3], args[4]
+    aln, g, startcodon_dist, config = args[0], args[1], args[2], args[3]
     logging.debug(aln["name"])
     genes_finder = GeneEndsFinder(g, config)
-    start_codon_pos, stop_codon_pos = genes_finder.find_ends_positions(aln["start"], aln["end"], aln["path"], startcodon_dist, only_longest)
+    start_codon_pos, stop_codon_pos = genes_finder.find_ends_positions(aln["start"], aln["end"], aln["path"], startcodon_dist, config["orfs_search"]["longest"])
     logging.debug(u'Start codon num=' + str(len(start_codon_pos)) + ' Stop codons num=' + str(len(stop_codon_pos)))
     ends_path_contructor = EndsPathConstructor(g, config)
     all_paths = ends_path_contructor.restore_full_paths(aln, start_codon_pos, stop_codon_pos, startcodon_dist)
@@ -139,10 +139,10 @@ def generate_orf(args):
     logging.debug(u'Paths num=' + str(len(all_paths)))
     return {"name": aln["name"], "all_paths": all_paths}
 
-def generate_orfs(output, output_shortest, alns, g, startcodon_dists, only_longest, config, t):
+def generate_orfs(output, output_shortest, alns, g, startcodon_dists, config, t):
     logging.debug( u'Threads ' + str(t) + u' alns ' + str(len(alns)))
     alns, startcodon_dists = remove_covered_orfs(alns, startcodon_dists, g)
-    all_orfs = Parallel(n_jobs=t, require='sharedmem')(delayed(generate_orf)([alns[i], g, startcodon_dists[i], only_longest, config]) for i in range(len(alns)))
+    all_orfs = Parallel(n_jobs=t, require='sharedmem')(delayed(generate_orf)([alns[i], g, startcodon_dists[i], config]) for i in range(len(alns)))
     with open(output, "a+") as fout:    
         for orf in all_orfs:
             name = orf["name"]
@@ -151,11 +151,10 @@ def generate_orfs(output, output_shortest, alns, g, startcodon_dists, only_longe
                            "|".join([k + "=" + str(path[k]) for k in path.keys() if k not in {"Edges", "seq", "prefix"}]) + "\n")
                 fout.write(path["seq"] + "\n")
 
-def load_yaml():
-    p = os.path.abspath(__file__)
-    with open(p[:-len("scripts/identify_gene_ends.py")] + "/config.yaml", 'r') as stream:
+def load_yaml(outdir):
+    with open(outdir + "/config.yaml", 'r') as stream:
         try:
-            res = yaml.load(stream)
+            res = yaml.load(stream, Loader=yaml.FullLoader)
         except yaml.YAMLError as exc:
             logging.error(exc)
             exit(-1)
@@ -169,19 +168,18 @@ if __name__ == "__main__":
     parser.add_argument('-k', '--kmer', help='k-mer size in graph', required=True)
     parser.add_argument('-p', '--proteins',  help='list of genes to estimate hmms position on genes (domtbl has to be set)', required=False)
     parser.add_argument('-d', '--domtbl',  help='HMMer alignment of hmms to genes (genes has to be set)', required=False)
-    parser.add_argument('-f', '--longestorf', help='generate ORFs that have stop codon before start codon', action='store_true')
-    parser.add_argument('-o', '--out',  help='output prefix', required=True)
+    parser.add_argument('-o', '--out',  help='output directory', required=True)
     parser.add_argument('-t', '--threads', help='threads number', required=False)
     args = parser.parse_args()
     logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'.log')
-    config = load_yaml()
+    config = load_yaml(args.out)
     if args.hmms == None and args.sequences == None:
         logging.error( u'Please provide sequences or hmm alignments')
         exit(-1)
     K = int(args.kmer)
     g = Graph(args.graph)
-    output = args.out + ".fasta"
-    output_shortest = args.out + "_shortest.fasta"
+    output = os.path.join(args.out, "orfs_raw.fasta")
+    output_shortest = os.path.join(args.out, "orfs_raw_shortest.fasta")
     if os.path.exists(output):
         os.remove(output)
     if os.path.exists(output_shortest):
@@ -218,7 +216,7 @@ if __name__ == "__main__":
             startcodon_dists.append([a["d"]])
         logging.info( u'Seqs: ' + str(len(alns)))
 
-    generate_orfs(output, output_shortest, alns, g, startcodon_dists, args.longestorf, config, int(args.threads))
+    generate_orfs(output, output_shortest, alns, g, startcodon_dists, config, int(args.threads))
 
 
 

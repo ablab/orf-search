@@ -76,9 +76,9 @@ def save_fasta(filename, orfs):
     with open(filename + ".fasta", "w") as output_handle:
         SeqIO.write(orfs, output_handle, "fasta")
 
-def align_with_nucmer(orfs, orfs_filename, contigs_filename, outfile, threads):
+def align_with_nucmer(orfs, orfs_filename, contigs_filename, outdir, threads):
     res = []
-    com = "nucmer -t " + threads + " --sam-short " + outfile + ".sam " + contigs_filename + " " + orfs_filename
+    com = "nucmer -t " + threads + " --sam-short " + outdir + "/orfs_final.sam " + contigs_filename + " " + orfs_filename
     logging.info( u'Running nucmer: ' + com)
     subprocess.call([com], shell=True)
     aligned_set = set()
@@ -252,11 +252,10 @@ def cluster_orfs(orfs, graph, t):
             res_cl.append(make_record(orf.seq, str(i) + "|" + orf.id.split(";")[0], str(i) + "|" + orf.name.split(";")[0]))
     return reprentatives_cl, res_cl
 
-def load_yaml():
-    p = os.path.abspath(__file__)
-    with open(p[:-len("scripts/filter_ORFs.py")] + "/config.yaml", 'r') as stream:
+def load_yaml(outdir):
+    with open(outdir + "/config.yaml", 'r') as stream:
         try:
-            res = yaml.load(stream)
+            res = yaml.load(stream, Loader=yaml.FullLoader)
         except yaml.YAMLError as exc:
             logging.error(exc)
             exit(-1)
@@ -269,14 +268,14 @@ if __name__ == "__main__":
     parser.add_argument('-g', '--graph', help='gfa-file with assembly graph', required=True)
     parser.add_argument('-c', '--contigs', help='fasta-file with contigs', required=False)
     parser.add_argument('-p', '--proteins',  help='list of known genes', required=False)
-    parser.add_argument('-o', '--out',  help='output prefix', required=True)
+    parser.add_argument('-o', '--out',  help='output directory', required=True)
     parser.add_argument('-t', '--threads', help='threads number', required=False)
     args = parser.parse_args()
     logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'.log')
     t = args.threads
     if t == None:
         t = "1"
-    config = load_yaml()
+    config = load_yaml(args.out)
 
     MIN_RELIABLE_LENGTH = config["orfs_filtering"]["min_reliable_length"]
     RELIABLE_LENGTH = config["orfs_filtering"]["reliable_length"]
@@ -287,14 +286,14 @@ if __name__ == "__main__":
     orfs_new = translate_orfs(orfs)
     orfs_new = leave_unique(orfs_new)
     logging.info( u'Total orfs number: ' + str(len(orfs_new)))
-    save_fasta(args.out + "_total", orfs_new)
+    save_fasta(args.out + "/orfs_final_total", orfs_new)
     if args.contigs != None:
         contigs = load_fasta(args.contigs)
         orfs = align_with_nucmer(orfs, args.orfs, args.contigs, args.out, t)
         orfs = translate_orfs(orfs)
         orfs = leave_unique(orfs)
         logging.info( u'Graph only orfs number: ' + str(len(orfs)))
-        save_fasta(args.out + "_graphonly", orfs)
+        save_fasta(args.out + "/orfs_final_graphonly", orfs)
     else:
         orfs = translate_orfs(orfs)
         orfs = leave_unique(orfs)
@@ -303,10 +302,10 @@ if __name__ == "__main__":
         known_proteins = load_fasta(args.proteins)
         orfs = leave_unknown(orfs, known_proteins)
         logging.info( u'Novel ORFs: ' + str(len(orfs)))
-        save_fasta(args.out + "_novel", orfs)
+        save_fasta(args.out + "/orfs_final_novel", orfs)
 
     repres, clustered_orfs = cluster_orfs(orfs, load_gfa_edges(args.graph), int(t))
     logging.info( u'Most reliable ORFs number: ' + str(len(repres)))
-    save_fasta(args.out + "_clustered", clustered_orfs)
-    save_fasta(args.out + "_most_reliable", repres)
+    save_fasta(args.out + "/orfs_final_clustered", clustered_orfs)
+    save_fasta(args.out + "/orfs_final_most_reliable", repres)
 

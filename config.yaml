@@ -1,6 +1,7 @@
 pathracer:
   evalue: 0.000000001
   min_length: 0.9
+  max_size: 2500000
 
 orfs_search:
   max_restorable_length: 3000  # maximum distance in the graph from alignment where start/stodon can be found
