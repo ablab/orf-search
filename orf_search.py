@@ -17,10 +17,10 @@ import yaml
 
 execution_path = os.path.dirname(os.path.abspath(__file__))
 
-def align_hmms(hmms_file, graph_file, k, evalue, threads, out_dir):
+def align_hmms(hmms_file, graph_file, k, evalue, maxsize, threads, out_dir):
     com = execution_path + "/aligners/pathracer " + hmms_file + " " + graph_file + " " + str(k) \
         + " --output " + out_dir + " --rescore --annotate-graph --threads " + str(threads) \
-        + " -E " + evalue + " --domE " + evalue + " --max-size 2500000 > " + out_dir + ".log"
+        + " -E " + evalue + " --domE " + evalue + " --max-size " + maxsize + " > " + out_dir + ".log"
     logging.info( u'Running HMM alignment. See log in ' + out_dir + u'.log')
     logging.debug( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
@@ -45,7 +45,7 @@ def find_true_hmm_alignments(hmmer_path, proteins_file, hmms_file, evalue, threa
     return out_file + ".dtbl", return_code
 
 def extract_ORFs_from_graph(hmms_alignments, proteins_alignments, graph_file, k, proteins_file, \
-                            hmms_true_alignments, longestorf, threads, out_file, out_dir):
+                            hmms_true_alignments, threads, out_dir):
     com = execution_path + "/scripts/identify_gene_ends.py "
     if os.path.exists(proteins_alignments):
         com += "-s " + proteins_alignments
@@ -54,37 +54,54 @@ def extract_ORFs_from_graph(hmms_alignments, proteins_alignments, graph_file, k,
     if proteins_file != None:
         com += " -p " + proteins_file \
                +" -d " + hmms_true_alignments
-    if longestorf:
-        com += " -f "
-    com += " -g " + graph_file + " -k " + str(k) + " -t " + str(threads) +" -o " + out_file
-    logging.info( u'Extracting ORFs from assembly graph. See log in ' + out_file + u'.log')
+    com += " -g " + graph_file + " -k " + str(k) + " -t " + str(threads) +" -o " + out_dir
+    logging.info( u'Extracting ORFs from assembly graph. See log in ' + out_dir + u'/orfs_raw.log')
     logging.debug( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
-    return out_file + ".fasta", return_code
+    return out_dir + "/orfs_raw.fasta", return_code
 
-def filter_orfs(orfs_sequences, graph, proteins_file, contigs_file, threads, print_all, out_file, out_dir):
+def filter_orfs(orfs_sequences, graph, proteins_file, contigs_file, threads, print_all, out_dir):
 
     com = execution_path + "/scripts/filter_ORFs.py -s " + orfs_sequences + \
-                        " -g " + graph + " -t " + str(threads) + " -o " + out_file
+                        " -g " + graph + " -t " + str(threads) + " -o " + out_dir
     if not print_all:
         if contigs_file != None:
             com += " -c " + contigs_file
         if proteins_file != None:
             com += " -p " + proteins_file
-    logging.info( u'Filtering ORFs. See log in ' + out_file + u'.log')
+    logging.info( u'Filtering ORFs. See log in ' + out_dir + u'/orfs_final.log')
     logging.debug( u'Running: ' + com)
     return_code = subprocess.call([com], shell=True)
-    return out_file + ".fasta", return_code
+    return out_dir + "/orfs_final.fasta", return_code
 
-def load_yaml():
-    p = os.path.abspath(__file__)
-    with open(p[:-len("orf_search.py")] + "/config.yaml", 'r') as stream:
-        try:
-            res = yaml.load(stream)
-        except yaml.YAMLError as exc:
-            logging.error(exc)
-            exit(-1)
-    return res["hmmer_path"], res["pathracer"]["evalue"]
+def form_yaml(args, outputdir):
+    config_name = os.path.join(outputdir, "config.yaml")
+    config = {}
+    config["pathracer"] = {}
+    config["pathracer"]["evalue"] = args.pr_evalue
+    config["pathracer"]["min_length"] = args.pr_minlen
+    config["pathracer"]["max_size"] = args.pr_maxsize
+
+    config["orfs_search"] = {}
+    config["orfs_search"]["longest"] = args.os_longest
+    config["orfs_search"]["max_restorable_length"] = args.os_maxrestorelen
+    config["orfs_search"]["max_path_length"] = args.os_maxpathlen
+    config["orfs_search"]["min_path_length"] = args.os_minpathlen
+    config["orfs_search"]["max_paths_num"] = args.os_maxpathnum
+    config["orfs_search"]["min_unique_edge_length"] = args.os_minuniqueedgelen
+
+    config["orfs_filtering"] = {}
+    config["orfs_filtering"]["min_reliable_length"] = args.of_minreliablelen
+    config["orfs_filtering"]["reliable_length"] = args.of_reliablelen
+    config["orfs_filtering"]["identity"] = args.of_identity
+    config["orfs_filtering"]["ed_threshold"] = args.of_ed
+    config["orfs_filtering"]["all"] = args.of_all
+
+    config_file = open(config_name, "w")
+    yaml.dump(config, config_file)
+    config_file.close()
+    return config_name
+
 
 
 def main(args):
@@ -95,10 +112,23 @@ def main(args):
     parser.add_argument('-g', '--graph', help='assembly graph in gfa-format', required=True)
     parser.add_argument('-k', '--kmer', help='assembly graph k-mer size', required=True)
     parser.add_argument('-c', '--contigs', help='fasta-file with assembly contigs', required=False)
-    parser.add_argument('-f', '--longestorf', help='generate ORFs that have stop codon before start codon', action='store_true')
     parser.add_argument('-t', '--threads', help='number of threads', required=False)
-    parser.add_argument('-a', '--all', help='do not perform filtering based on contigs or known IPGs', required=False, action='store_true')
     parser.add_argument('-o', '--out', help='output directory', required=True)
+    parser.add_argument('--pr-evalue', help='PathRacer: e-value (DEFAULT: 1.0e-09)', default=0.000000001, type=float, required=False)
+    parser.add_argument('--pr-minlen', help='PathRacer: minimum length of alignment (DEFAULT: 0.9)', default=0.9, type=float, required=False)
+    parser.add_argument('--pr-maxsize', help='PathRacer: maximum component size to process (DEFAULT: 2500000)', default=2500000, type=int, required=False)
+    parser.add_argument('--os-longest', help='ORF search: generate ORFs that have stop codon before start codon (DEFAULT: False)', action='store_false')
+    parser.add_argument('--os-maxrestorelen', help='ORF search: maximum distance in the graph from alignment where start/stodon can be found (DEFAULT: 3000)', default=3000, type=int, required=False)
+    parser.add_argument('--os-maxpathlen', help='ORF search: maximum length of path to start/stop codon (DEFAULT: 3000)', default=1500, type=int, required=False)
+    parser.add_argument('--os-minpathlen', help='ORF search: minimum length of path to start/stop codon (DEFAULT: 0)', default=0, type=int, required=False)
+    parser.add_argument('--os-maxpathnum', help='ORF search: maximum number of paths can be generated during reconstruction of paths to start/stop codons (DEFAULT: 2000)', default=2000, type=int, required=False)
+    parser.add_argument('--os-minuniqueedgelen', help='ORF search: length of edges that considered us unique during filtering based on contigs (DEFAULT: 0)', default=0, type=int, required=False)
+    parser.add_argument('--of-minreliablelen', help='ORF filtering: second minimum length of edge for filtering (used only if there is no edges with length > reliable length) (DEFAULT: 100)', default=100, type=int, required=False)
+    parser.add_argument('--of-reliablelen', help='ORF filtering: minimum length of edge for filtering (DEFAULT: 3000)', default=300, type=int, required=False)
+    parser.add_argument('--of-identity', help='ORF filtering: single-linkage clustering cluster two sequence into the same cluster if they are similar > indetity (DEFAULT: 90)', default=90, type=int, required=False)
+    parser.add_argument('--of-ed', help='ORF filtering: threshold for edit distance calculation (DEFAULT: 0.2)', default=0.2, type=float, required=False)
+    parser.add_argument('--of-all', help='ORF filtering: do not perform filtering based on contigs or known IPGs (DEFAULT: False)', required=False, action='store_false')
+
     is_test = False
     if len(args) == 2 and args[1] == "--test":
         is_test = True
@@ -111,15 +141,16 @@ def main(args):
     if not os.path.exists(args.out):
         os.makedirs(args.out)
 
+    config_file = form_yaml(args, args.out)
+
     logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG)
     #logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'/orf_search.log')
 
     if is_test:
         logging.info(u'Start test on a small dataset...')
 
-    hmmer_path, evalue= load_yaml()
-    if hmmer_path == None:
-        hmmer_path = ""
+    hmmer_path = ""
+    evalue, maxsize = args.pr_evalue, args.pr_maxsize
 
     t = 1
     if args.threads != None:
@@ -133,7 +164,7 @@ def main(args):
         sequences_filename = None
 
     hmms_name = ".".join(args.hmms.split("/")[-1].split(".")[0:-1])
-    hmm_return_str, hmm_return_code = align_hmms(args.hmms, args.graph, args.kmer, str(evalue), min(t, 16), join(args.out, hmms_name))
+    hmm_return_str, hmm_return_code = align_hmms(args.hmms, args.graph, args.kmer, str(evalue), str(maxsize), min(t, 16), join(args.out, hmms_name))
     if hmm_return_code != 0:
         logging.warning( u'HMM alignment failed')
     if hmm_return_code == 0 and sequences_filename != None and not os.path.exists(join(args.out, hmms_name + ".dtbl")):
@@ -154,13 +185,13 @@ def main(args):
 
     orfs_fasta, return_code = extract_ORFs_from_graph(hmm_return_str, seq_return_str, args.graph, args.kmer, \
                                                         sequences_filename, join(args.out, hmms_name + ".dtbl"), \
-                                                        args.longestorf, t, join(args.out, "orfs_raw"), args.out)
+                                                        t, args.out)
 
     if return_code != 0:
         logging.error( u'Orfs generation failed')
         exit(-1)
 
-    final_orfs_str, return_code = filter_orfs(orfs_fasta, args.graph, sequences_filename, args.contigs, t, args.all, join(args.out, "orfs_final"), args.out)
+    final_orfs_str, return_code = filter_orfs(orfs_fasta, args.graph, sequences_filename, args.contigs, t, args.of_all, args.out)
     if return_code != 0:
         logging.error( u'Filtering failed')
         exit(-1)
