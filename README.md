@@ -7,17 +7,13 @@ It incorporates the power of two graph alignment tools (PathRacer and SPAligner)
 ## Installation
 
 The easiest way to install `orf-search` is via conda:
-
-    conda install -c tatianadvorkina -c conda-forge -c bioconda orf-search
-
-or if you are using Python2 by default you can create environment and install package in it:
  
-    conda create -n orf_search  -c tatianadvorkina -c conda-forge -c bioconda python=3.5 orf-search
+    conda create -n orf_search  -c tatianadvorkina -c conda-forge -c bioconda python=3.6 orf-search
     conda activate  orf_search
 
 Alternatively you can download git repo and all packages by yourself.
 
-The main pipeline is written in Python3 and uses several libraries described below.
+The main pipeline is written in Python3 and uses several libraries described below (and in requirements.txt file).
 - Python3
     - [biopython](https://biopython.org/wiki/Download)
     - [pyyaml](https://pyyaml.org/wiki/PyYAMLDocumentation)
@@ -56,7 +52,7 @@ Synopsis:
 
     orf_search.py -m HMMS -g GRAPH -k KMER -o OUT [-s SEQUENCES] [-r] [-c CONTIGS] [-f] [-t THREADS] [-a]
 
-Parameters are:
+Main parameters are:
 
 `-m HMMS`
     list of HMMs in HMMer format that represent domains for PathRacer input
