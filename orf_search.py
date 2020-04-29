@@ -9,15 +9,17 @@ import logging
 import subprocess
 import resource
 
-import scripts.load_mappings
-import scripts.input_sanity_check
-
 import argparse
 import yaml
 
 execution_path = os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))))
 PKG = 'orf_search'
 PKG_LOCATION = os.path.join(execution_path, PKG)
+
+sys.path.append(PKG_LOCATION)
+
+import scripts.load_mappings
+import scripts.input_sanity_check
 
 def align_hmms(hmms_file, graph_file, k, evalue, maxsize, threads, out_dir):
     com = PKG_LOCATION + "/aligners/pathracer " + hmms_file + " " + graph_file + " " + str(k) \

@@ -12,13 +12,13 @@ except:
     exit(-1)
 
 setup(name='orf-search',
-      version='0.4',
+      version='0.5',
       author='Tatiana Dvorkina',
       author_email='tedvorkina@gmail.com',
       url='https://github.com/ablab/orf-search',
       license='GPLv2',
       packages=["orf_search", "orf_search.scripts"],
-      package_dir = {"orf_search": './', 'orf_search.scripts': 'scripts/'},
+      package_dir = {"orf_search": './', 'scripts': './scripts/'},
       package_data= {'orf_search':['aligners/*', 'config.yaml', 'tiny_dataset/*']},
       scripts = ['orf_search.py']
       )

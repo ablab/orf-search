@@ -1,4 +1,4 @@
-{% set version = "0.4" %}
+{% set version = "0.5" %}
 
 package:
   name: orf-search
@@ -8,7 +8,7 @@ source:
    path: ../
 
 build:
-  script: python3.5 setup.py install
+  script: python3.6 setup.py install
 
 requirements:
     build:
@@ -19,8 +19,9 @@ requirements:
         - libboost >=1.67.0
         - py-boost >=1.67.0
         - joblib
+        - numpy >=1.11
     host:
-        - python =3.5
+        - python >=3.6
         - biopython >=1.70 # [not py27]
         - argparse
         - pyyaml
@@ -31,7 +32,7 @@ requirements:
         - bzip2
         - python-edlib
     run:
-        - python =3.5
+        - python >=3.6
         - biopython >=1.70 # [not py27]
         - argparse
         - pyyaml
