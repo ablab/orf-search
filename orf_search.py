@@ -171,7 +171,7 @@ def main(args):
         find_true_hmm_alignments(hmmer_path, sequences_filename, args.hmms, str(evalue), t, join(args.out, hmms_name))
 
     if sequences_filename != None and args.runspaligner:
-        seq_name = sequences_filename
+        seq_name = "seq_aln"
         seq_return_str, seq_return_code = align_sequences(args.graph, args.kmer, sequences_filename, t, join(args.out, seq_name))
         if seq_return_code != 0:
             logging.warning( u'Sequence alignment failed')

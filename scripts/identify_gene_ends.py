@@ -171,7 +171,7 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--out',  help='output directory', required=True)
     parser.add_argument('-t', '--threads', help='threads number', required=False)
     args = parser.parse_args()
-    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'.log')
+    logging.basicConfig(format = u'%(levelname)-8s [%(asctime)s] %(message)s', level = logging.DEBUG, filename = args.out + u'/gene_ends_identify.log')
     config = load_yaml(args.out)
     if args.hmms == None and args.sequences == None:
         logging.error( u'Please provide sequences or hmm alignments')
