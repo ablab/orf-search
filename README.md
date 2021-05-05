@@ -1,4 +1,4 @@
-# ORF search in assembly graphs
+# ORFograph: ORF search in assembly graphs
 
 Pipeline for generating potential gene sequences, ORFs (Open Reading Frames), from assembly graphs.
 
@@ -25,7 +25,16 @@ The main pipeline is written in Python3 and uses several libraries described bel
 - [PathRacer](https://github.com/ablab/spades/archive/v0.5-recomb.tar.gz)
 - [SPAligner](https://github.com/ablab/spades/archive/spaligner-paper.tar.gz)
 
-Execution files of PathRacer and SPAligner must be in `aligners/` folder.
+
+Execution files of PathRacer and SPAligner must be in `aligners/` folder. 
+Suitable versions of both tools can be generated from archives above and installed using following instructions:
+
+    cd spades/assembler/
+    mkdir build && cd build && cmake ../src
+    make spaligner
+    make pathracer
+
+Both executables can be found in `build/bin/` folder.
 
 Check sucessfull installation by running:
 
@@ -50,7 +59,7 @@ The output for the test run will be saved in `./tiny_dataset_test/` folder:
 
 Synopsis: 
 
-    orf_search.py -m HMMS -g GRAPH -k KMER -o OUT [-s SEQUENCES] [-r] [-c CONTIGS] [-f] [-t THREADS] [-a]
+    orf_search.py -m HMMS -g GRAPH -o OUT [-s SEQUENCES] [-r] [-c CONTIGS] [-f] [-t THREADS] [-a]
 
 Main parameters are:
 
@@ -59,9 +68,6 @@ Main parameters are:
 
 `-g GRAPH`
     path to assembly graph (in GFA format), it can contain paths (starting with `P` lines) that will be used in filtering
-
-`-k KMER`
-    assembly graph k-mer size
 
 `-o OUT`
     output directory name
