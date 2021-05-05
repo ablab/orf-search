@@ -83,17 +83,19 @@ def is_inside(aln1, aln2, path_constructor):
     if path1_s in path2_s and \
       (path1_s != path2_s or \
       (path1_s == path2_s and (aln1["start"] > aln2["start"] and aln1["end"] < aln2["end"]))):
-        index = 0
+        index, index_last = 0, -1
         for i in range(len(aln2["path"])):
             j = 0
             while j < len(aln1["path"]) and i + j < len(aln2["path"]) and aln2["path"][i + j] == aln1["path"][j]:
                 j += 1
             if j == len(aln1["path"]):
-                index = i
+                index, index_last = i, i + j
                 break
-        if i == 0 and aln2["start"] > aln1["start"] - 1:
+        if index == 0 and aln2["start"] > aln1["start"] - 1:
             return False
-        ln = path_constructor.restore_path_len(aln2["start"], aln1["start"] - 1, aln2["path"][:i + 1])
+        if len(aln2["path"]) == index_last and aln1["end"] > aln2["end"]:
+            return False
+        ln = path_constructor.restore_path_len(aln2["start"], aln1["start"] - 1, aln2["path"][:index + 1])
         if ln % 3 == 0:
             return True
         else:
@@ -117,10 +119,11 @@ def remove_covered_orfs(alns, startcodon_dists, g):
     res_startcodon_dists = []
     for i in range(len(res_alns1)):
         is_covered = False
-        for j in range(len(res_alns1)):
-            if is_inside(res_alns1[i], res_alns1[j], path_constructor):
-                is_covered = True
-                break
+        if not res_alns1[i]["full"]:
+            for j in range(len(res_alns1)):
+                if is_inside(res_alns1[i], res_alns1[j], path_constructor):
+                    is_covered = True
+                    break
         if not is_covered:
             res_alns.append(res_alns1[i])
             res_startcodon_dists.append(res_startcodon_dists1[i])
@@ -141,9 +144,17 @@ def generate_orf(args):
 
 def generate_orfs(output, output_shortest, alns, g, startcodon_dists, config, t):
     logging.debug( u'Threads ' + str(t) + u' alns ' + str(len(alns)))
+    alns_old, startcodon_dists_old = alns, startcodon_dists
     alns, startcodon_dists = remove_covered_orfs(alns, startcodon_dists, g)
     all_orfs = Parallel(n_jobs=t, require='sharedmem')(delayed(generate_orf)([alns[i], g, startcodon_dists[i], config]) for i in range(len(alns)))
-    with open(output, "a+") as fout:    
+    is_empty = True
+    for orf in all_orfs:
+        if len(orf["all_paths"]) > 0:
+            is_empty = False
+            break
+    if is_empty:
+       all_orfs = Parallel(n_jobs=t, require='sharedmem')(delayed(generate_orf)([alns_old[i], g, startcodon_dists_old[i], config]) for i in range(len(alns_old)))
+    with open(output, "a+") as fout:
         for orf in all_orfs:
             name = orf["name"]
             for path in orf["all_paths"]:
