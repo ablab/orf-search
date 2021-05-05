@@ -27,12 +27,19 @@ The main pipeline is written in Python3 and uses several libraries described bel
 
 
 Execution files of PathRacer and SPAligner must be in `aligners/` folder. 
-Suitable versions of both tools can be generated from archives above and installed using following instructions:
+Suitable versions of both tools can be generated from archives above and installed using following instructions.
 
-    cd spades/assembler/
+PathRacer:
+
+    cd spades-0.5-recomb/assembler/
+    mkdir build && cd build && cmake ../src
+    make pathracer
+   
+SPAligner:
+    
+    cd spades-spaligner-paper/assembler/
     mkdir build && cd build && cmake ../src
     make spaligner
-    make pathracer
 
 Both executables can be found in `build/bin/` folder.
 
