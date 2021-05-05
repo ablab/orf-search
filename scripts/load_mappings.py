@@ -95,13 +95,14 @@ def load_pathracer_mapping(domtblfile, edges, len_th, evalue_th, K):
         seq_s, seq_e, path = convert_pos(hit["start"], hit["end"], shift, path, edges, K) 
         if len(path) > 0:
             pathracer_lst.append({"seq_name": hit["seq_name"], "name": hit["hmm_name"], "start": seq_s, \
-                                    "end": seq_e, "path": path, "prefix": "pathracer"})
+                                    "end": seq_e, "path": path, "prefix": "pathracer", "full": False})
     return pathracer_lst
 
 def load_spaligner_mapping(mappings_fasta):
     res = []
     seqs = load_sequences(mappings_fasta, "list")
     for s in seqs:
+        is_full = "FULL" in s.description
         lst = s.description.split("|")
         ind = 0
         while not lst[ind].startswith("Edges="):
@@ -111,5 +112,5 @@ def load_spaligner_mapping(mappings_fasta):
         for i in range(len(path)):
             if not path[i].endswith("-") and not path[i].endswith("+"):
                 path[i] = path[i] + "+" 
-        res.append({"name": s.name.replace(" ", "_"), "start": start_g, "end": end_g, "path": path, "d":start_s, "prefix": "spaligner"})
+        res.append({"name": s.name.replace(" ", "_"), "start": start_g, "end": end_g, "path": path, "d":start_s, "prefix": "spaligner", "full": is_full})
     return res
