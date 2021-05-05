@@ -102,7 +102,16 @@ def form_yaml(args, outputdir):
     config_file.close()
     return config_name
 
-
+def identify_graph_ksize(gfafile):
+    k = -1
+    with open(gfafile, "r") as fin:
+        for ln in fin.readlines():
+            if ln.startswith("L"):
+                k = int(ln.strip().split("\t")[-1][:-1])
+    if k == -1:
+        logging.error( u'K-mer size cannot be identified from gfa-file')
+        exit(-1)
+    return k
 
 def main(args):
     parser = argparse.ArgumentParser(description='Searches for potential genes in assembly graphs')
@@ -110,7 +119,6 @@ def main(args):
     parser.add_argument('-s', '--sequences', help='fasta-file with proteins(optional)', required=False)
     parser.add_argument('-r', '--runspaligner', help='if set, run SPAligner on proteins', action='store_true')
     parser.add_argument('-g', '--graph', help='assembly graph in gfa-format', required=True)
-    parser.add_argument('-k', '--kmer', help='assembly graph k-mer size', required=True)
     parser.add_argument('-c', '--contigs', help='fasta-file with assembly contigs', required=False)
     parser.add_argument('-t', '--threads', help='number of threads', required=False)
     parser.add_argument('-o', '--out', help='output directory', required=True)
@@ -135,7 +143,7 @@ def main(args):
         test_dir = "tiny_dataset_test"
         p = os.path.abspath(__file__)
         args = [args[0], "-m", p[:-len("orf_search.py")]  + "/tiny_dataset/ricinb_lectin2.hmm", "-s", p[:-len("orf_search.py")] + "/tiny_dataset/toxin.fasta", \
-                         "-r", "-g", p[:-len("orf_search.py")]  + "/tiny_dataset/graph.gfa", "-k", "55", "-o", test_dir]
+                         "-r", "-g", p[:-len("orf_search.py")]  + "/tiny_dataset/graph.gfa", "-o", test_dir]
     args = parser.parse_args(args[1:])
 
     if not os.path.exists(args.out):
@@ -151,6 +159,7 @@ def main(args):
 
     hmmer_path = ""
     evalue, maxsize = args.pr_evalue, args.pr_maxsize
+    kmer = identify_graph_ksize(args.graph)
 
     t = 1
     if args.threads != None:
@@ -164,7 +173,7 @@ def main(args):
         sequences_filename = None
 
     hmms_name = ".".join(args.hmms.split("/")[-1].split(".")[0:-1])
-    hmm_return_str, hmm_return_code = align_hmms(args.hmms, args.graph, args.kmer, str(evalue), str(maxsize), min(t, 16), join(args.out, hmms_name))
+    hmm_return_str, hmm_return_code = align_hmms(args.hmms, args.graph, kmer, str(evalue), str(maxsize), min(t, 16), join(args.out, hmms_name))
     if hmm_return_code != 0:
         logging.warning( u'HMM alignment failed')
     if hmm_return_code == 0 and sequences_filename != None and not os.path.exists(join(args.out, hmms_name + ".dtbl")):
@@ -172,7 +181,7 @@ def main(args):
 
     if sequences_filename != None and args.runspaligner:
         seq_name = "seq_aln"
-        seq_return_str, seq_return_code = align_sequences(args.graph, args.kmer, sequences_filename, t, join(args.out, seq_name))
+        seq_return_str, seq_return_code = align_sequences(args.graph, kmer, sequences_filename, t, join(args.out, seq_name))
         if seq_return_code != 0:
             logging.warning( u'Sequence alignment failed')
     else:
@@ -183,7 +192,7 @@ def main(args):
         logging.error( u'No data was generated to find orfs')
         exit(-1)
 
-    orfs_fasta, return_code = extract_ORFs_from_graph(hmm_return_str, seq_return_str, args.graph, args.kmer, \
+    orfs_fasta, return_code = extract_ORFs_from_graph(hmm_return_str, seq_return_str, args.graph, kmer, \
                                                         sequences_filename, join(args.out, hmms_name + ".dtbl"), \
                                                         t, args.out)
 
