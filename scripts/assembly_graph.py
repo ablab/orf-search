@@ -1,12 +1,11 @@
 import sys
 
 from Bio.Seq import Seq
-from Bio.Alphabet import generic_dna
 
 sys.setrecursionlimit(1000000)
 
 def make_rc(s):
-    seq = Seq(s, generic_dna)
+    seq = Seq(s)
     return str(seq.reverse_complement())
 
 class Graph:

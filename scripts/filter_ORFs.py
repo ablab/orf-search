@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 from Bio.Seq import Seq
-from Bio.Alphabet import generic_dna
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 
@@ -51,7 +50,7 @@ def aai(ar):
     return aai*100
 
 def make_rc(s):
-    seq = Seq(s, generic_dna)
+    seq = Seq(s)
     return str(seq.reverse_complement())
 
 def load_gfa_edges(gfa_filename):
